@@ -18,6 +18,12 @@ Rictus is implemented in ISO C.
 
 The initial executable uses common source code under `src/` with public project declarations under `include/`. Platform-specific source directories will be introduced only when an implementation actually requires an operating-system boundary.
 
+### Configuration
+
+Rictus uses `rictus.json` as its local runtime configuration file. Configuration semantics are common across Windows and Linux.
+
+The initial IRC configuration contains explicit server, port, TLS, username, password, and channel fields. The local credential-bearing file is not tracked by Git; `rictus.json.example` documents the contract.
+
 ### Build entry points
 
 - Windows: `build.cmd`
@@ -44,8 +50,7 @@ None currently recorded.
 Implementation details not yet established include:
 
 - platform interface surface;
-- dependency set;
-- configuration format and discovery;
+- TLS dependency;
 - runtime/state and logging locations;
 - module binary/loading contract details;
 - final build output layout beyond the bootstrap targets.
