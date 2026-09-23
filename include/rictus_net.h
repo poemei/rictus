@@ -13,6 +13,9 @@ int rictus_net_connect(rictus_net_connection *connection,
                        char *error,
                        size_t error_size);
 
+int rictus_net_native_handle(const rictus_net_connection *connection,
+                             void **handle);
+
 void rictus_net_close(rictus_net_connection *connection);
 
 #endif
