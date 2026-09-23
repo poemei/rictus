@@ -12,6 +12,9 @@
 - Added the public bootstrap declaration in `include/rictus.h`.
 - Implemented the Linux `Makefile` build entry point.
 - Implemented the Windows MSVC command-line `build.cmd` build entry point.
+- Added common ISO C loading and validation for `rictus.json`.
+- Added the initial IRC configuration contract for server, port, TLS, username, password, and channel.
+- Added `rictus.json.example` for Libera.Chat and `#stn-labz`.
 
 ### Changed
 
@@ -19,21 +22,26 @@
 - Documented Windows `build.cmd` and Linux `Makefile` as the platform build entry points.
 - Documented the rule that platform-specific behavior remains behind native platform boundaries.
 - Replaced the empty build staging placeholders with minimal native Windows and Linux build definitions.
+- Updated both build entry points to compile the common configuration loader.
+- Excluded local `rictus.json` from Git so IRC credentials are not committed.
 
 ### Validation
 
 - Verified the documentation paths referenced by the README are present.
-- Reviewed the bootstrap source and both build definitions for this increment.
+- Reviewed the bootstrap source and both build definitions.
+- Reviewed the configuration contract, bounded configuration file size, required fields, port range, and channel validation.
 - Target-platform compilation and runtime execution have not yet been performed and are not claimed.
 
 ### Limitations
 
-- The bootstrap currently prints the Rictus banner and initialization message, then exits successfully.
-- Configuration, platform services, modules, networking, runtime state, and logging are not implemented.
+- Rictus currently loads configuration, reports non-secret IRC settings, prints its initialization message, and exits.
+- The current JSON reader intentionally supports the small established configuration contract rather than serving as a general JSON library.
+- Networking, TLS, IRC authentication, channel joining, platform services, modules, runtime state, and logging are not implemented.
 
 ### Deferred
 
-- Platform service interface implementation.
-- Configuration and runtime-state implementation.
+- Native Windows and Linux networking boundary.
+- TLS implementation/dependency decision.
+- IRC registration, authentication, channel join, and session maintenance.
+- Runtime-state and logging implementation.
 - Module loading implementation and validation.
-- Networking and communications implementation.
