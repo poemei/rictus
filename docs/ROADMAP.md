@@ -38,9 +38,17 @@
 - The persistent session answers server PING with PONG.
 - Authenticated registration and join of `#stn-labz` are runtime validated on Windows and Linux.
 
+### Current event increment
+
+- Added a bounded, platform-independent IRC message parser.
+- IRC wire input is mapped into common Rictus events rather than intelligence behavior consuming protocol text directly.
+- Initial event types are channel message, private message, join, part, and quit.
+- Events are observation-only in this increment; they do not trigger commands or intelligence actions.
+- Runtime validation is pending on Windows and Linux.
+
 ### Next increment
 
-Build the first bounded IRC message-handling behavior above the now-validated cross-platform session foundation.
+Validate identical event observation on Windows and Linux, then place bounded command/intelligence dispatch above the event contract.
 
 ### Deferred
 
