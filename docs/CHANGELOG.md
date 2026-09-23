@@ -18,6 +18,7 @@
 - Added the first executable bounded command, `!status`, plus deterministic unknown-command handling and channel/private reply routing.
 - Added `!help` so the live command surface is self-describing, and bounded command argument capture for later handlers.
 - Validated identical JOIN event semantics on Windows and Linux from the live Libera.Chat session.
+- Validated private-message command dispatch and live `!help` / `!status` replies on Windows and Linux; command matching is case-insensitive.
 
 ### Changed
 
