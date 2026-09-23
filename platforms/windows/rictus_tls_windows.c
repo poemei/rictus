@@ -212,7 +212,7 @@ int rictus_tls_connect(rictus_tls_connection *tls,
                                             SECURITY_NATIVE_DREP,
                                             &input_desc,
                                             0U,
-                                            NULL,
+                                            &native->context,
                                             &output_desc,
                                             &context_attributes,
                                             &expiry);
