@@ -41,6 +41,10 @@ Rictus uses IRCv3 capability negotiation and SASL PLAIN over the already verifie
 
 Raw IRC protocol input is parsed into bounded, platform-independent Rictus events before higher-level behavior consumes it. JOIN event semantics from the live Libera.Chat session have direct runtime evidence on Windows and Linux.
 
+### Command boundary
+
+Private IRC messages are deterministically classified before command parsing. `!help` and `!status` have direct live runtime evidence on Windows and Linux, including reply routing back to the private-message sender. Command-name matching is case-insensitive; mixed-case `!staTUS` has direct Linux runtime evidence.
+
 ### Configuration
 
 Rictus uses `rictus.json` as its local runtime configuration file with common semantics on Windows and Linux. The local credential-bearing file is not tracked by Git; `rictus.json.example` documents the contract.
