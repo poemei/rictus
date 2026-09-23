@@ -2,24 +2,44 @@
 
 ## Status
 
-Configuration is not yet implemented in the rebuilt Rictus codebase.
+Rictus now loads its initial runtime configuration from `rictus.json` in the working directory.
 
-This document records the configuration contract as it becomes established. It must not be used to invent configuration keys or runtime behavior before those choices are implemented and documented.
+The local `rictus.json` file is excluded from Git because it contains the IRC account credential. A credential-free `rictus.json.example` is tracked as the configuration template.
+
+## IRC configuration
+
+The current contract is:
+
+```json
+{
+  "irc": {
+    "server": "irc.libera.chat",
+    "port": 6697,
+    "tls": true,
+    "username": "Rictus",
+    "password": "",
+    "channel": "#stn-labz"
+  }
+}
+```
+
+Fields:
+
+- `server`: IRC server hostname.
+- `port`: IRC server TCP port, 1 through 65535.
+- `tls`: whether the IRC connection requires TLS.
+- `username`: Rictus IRC account/nickname used by the future IRC session.
+- `password`: IRC authentication credential. Rictus does not print this field during normal configuration reporting.
+- `channel`: channel Rictus will join. The current validator requires a channel beginning with `#`.
+
+All fields are required in this first configuration contract. The password must be non-empty in the local runtime configuration.
 
 ## Cross-platform requirement
 
-Configuration semantics will be the same on Windows and Linux. Platform-specific filesystem locations may differ, but configuration meaning must not change merely because the operating system changes.
+Configuration syntax and meaning are identical on Windows and Linux. Configuration loading is common ISO C code and does not use a platform compatibility shim.
 
-## Pending definition
+## Current scope
 
-The following remain to be established during implementation:
+This increment loads and validates configuration only. It does not establish a network connection, TLS session, IRC registration, authentication, or channel join.
 
-- configuration file format;
-- configuration file discovery;
-- runtime/state locations;
-- log locations;
-- module configuration;
-- operator and communications settings;
-- validation and deterministic error behavior.
-
-Approved configuration decisions will be recorded here and, where architectural, in [DECISIONS.md](DECISIONS.md).
+Runtime/state locations, log locations, module configuration, and additional deterministic validation remain to be established as their corresponding capabilities are implemented.
