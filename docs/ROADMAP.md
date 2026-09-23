@@ -52,7 +52,7 @@
 - Channel and private messages are deterministically classified as commands when their first non-space character is `!`; other messages become observations.
 - Dispatch is classification-only: no command is executed and no intelligence action is authorized in this increment.
 - IRC protocol parsing remains isolated below the event boundary.
-- Runtime validation of dispatch remains pending.
+- Private-message command dispatch is runtime validated on Windows and Linux.
 
 ### Current command increment
 
@@ -62,11 +62,11 @@
 - `!help` reports the bounded command surface currently implemented.
 - Unknown commands receive a deterministic unknown-command response.
 - Channel commands reply to the channel; private commands reply to the sender.
-- Runtime validation is pending on Windows and Linux.
+- `!help` and `!status` private-message replies are runtime validated on Windows and Linux; mixed-case `!staTUS` is also validated on Linux.
 
 ### Next increment
 
-Validate `!status`, `!help`, and unknown-command behavior on both platforms before adding operational command authority.
+Validate unknown-command behavior, then begin the first bounded operational capability above the proven command path.
 
 ### Deferred
 
