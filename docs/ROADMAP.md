@@ -25,7 +25,9 @@
 - Linux TCP: validated.
 - Windows TCP: validated.
 - Linux OpenSSL TLS: validated.
-- Windows Schannel build/runtime: pending validation.
+- Windows Schannel build: validated.
+- Initial Windows Schannel handshake reached the peer but returned `SEC_I_INCOMPLETE_CREDENTIALS`.
+- Schannel client-certificate handling has been corrected; Windows TLS runtime retest is pending.
 
 ### Next increment
 
