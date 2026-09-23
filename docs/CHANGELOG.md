@@ -19,6 +19,8 @@
 - Added `!help` so the live command surface is self-describing, and bounded command argument capture for later handlers.
 - Validated identical JOIN event semantics on Windows and Linux from the live Libera.Chat session.
 - Validated private-message command dispatch and live `!help` / `!status` replies on Windows and Linux; command matching is case-insensitive.
+- Added the top-level `tests/` directory for feature acceptance tests before features are treated as live.
+- Restored the Rictus Core bridge to the shared sibling STN-LABZ module ABI and its Core-owned module registry contract from the prior implementation.
 
 - Documented the bounded Rictus intelligence watch scope and deterministic relevance/evidence threshold.
 - Explicitly excluded CISA reporting updates from the Rictus alert feed.
@@ -30,6 +32,7 @@
 - Windows TLS no longer depends on OpenSSL development headers/libraries or `OPENSSL_ROOT_DIR`.
 - Windows TLS now uses the Windows SDK Schannel/security libraries.
 - Linux continues to use the already validated OpenSSL TLS implementation.
+- Core modernization now reuses sound prior Core engineering where it remains compatible with current requirements rather than rewriting it without cause.
 
 ### Validation
 
@@ -41,14 +44,17 @@
 - Windows Schannel TLS reached Libera.Chat but runtime validation exposed `SEC_I_INCOMPLETE_CREDENTIALS` during the handshake.
 - Windows Schannel now disables automatic default client credentials and preserves the same security context across every `InitializeSecurityContext` handshake leg.
 - The `SEC_I_INCOMPLETE_CREDENTIALS` path now re-enters Schannel immediately instead of incorrectly waiting for another peer record; the corrected handshake is runtime validated.
+- The restored module ABI/registry bridge is source-integrated only in this increment; it is not yet part of the default executable build and has not yet been declared live.
 
 ### Limitations
 
 - IRC registration, SASL authentication, channel join, and persistent online session are runtime validated on Windows and Linux.
-- The initial command path is implemented and runtime validated; intelligence collection/qualification, modules, runtime state, and logging are not implemented.
+- The initial command path is implemented and runtime validated; intelligence collection/qualification, module loading, runtime state, and logging are not yet live.
+- Shared module ABI headers are expected in the sibling `../ABI/includes/` tree, matching the established STN-LABZ layout.
 
 ### Deferred
 
+- Core module discovery/loading and native Windows/Linux loader boundaries.
+- IRC migration from executable Core path into its own module after the Core lifecycle is proven.
 - Additional command authority and intelligence behavior above the new dispatch layer.
 - Runtime-state and logging implementation.
-- Module loading implementation and validation.
