@@ -4,7 +4,7 @@ CPPFLAGS := -Iinclude
 CFLAGS := -std=c17 -Wall -Wextra -Wpedantic
 BUILD_DIR := build/linux
 TARGET := $(BUILD_DIR)/rictus
-SOURCES := src/main.c src/rictus.c
+SOURCES := src/main.c src/rictus.c src/config.c
 OBJECTS := $(SOURCES:src/%.c=$(BUILD_DIR)/%.o)
 
 .PHONY: all clean
