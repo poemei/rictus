@@ -2,6 +2,8 @@
 ![Status](https://img.shields.io/badge/Status-Active%20Development-orange)
 ![Core Qualification](https://img.shields.io/badge/Core%20Qualification-00%2F20-warning)
 ![Modules](https://img.shields.io/badge/Modules-Hot--Load-success)
+![Static Badge](https://img.shields.io/badge/:badgeContent)
+![Static Badge](https://img.shields.io/badge/build-100%0-orange)
 
 **STN-LABZ Communications and External Intelligence Coordination Agent**
 
