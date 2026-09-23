@@ -6,44 +6,42 @@ This document separates established direction from proposals and unresolved choi
 
 ### Cross-platform architecture
 
-Rictus targets Windows and Linux as first-class platforms.
+Rictus targets Windows and Linux as first-class platforms. Common behavior remains platform-independent. Operating-system-specific behavior uses explicit native platform implementations behind controlled interfaces.
 
-Common behavior will remain platform-independent. Operating-system-specific behavior will use explicit native platform implementations behind controlled interfaces.
+### Language and source baseline
 
-### Language
-
-Rictus is implemented in ISO C.
-
-### Source baseline
-
-Common executable behavior uses source under `src/` with public project declarations under `include/`. Operating-system implementations live beneath `platforms/windows/` and `platforms/linux/` when a native boundary is required.
+Rictus is implemented in ISO C. Common executable behavior uses `src/` and public declarations use `include/`. Native implementations live beneath `platforms/windows/` and `platforms/linux/` when required.
 
 ### Platform networking
 
-Common Rictus code uses the `rictus_net` interface for TCP connection lifecycle.
+Common Rictus code uses the `rictus_net` interface for TCP lifecycle.
 
-- Windows implements the interface with native Winsock.
-- Linux implements the interface with native POSIX sockets.
-- Native socket types and APIs do not enter common Rictus code.
+- Windows uses native Winsock.
+- Linux uses native POSIX sockets.
+- Native socket APIs do not enter common Rictus behavior.
+
+TCP connectivity to `irc.libera.chat:6697` has direct runtime evidence on Windows and Linux.
+
+### TLS
+
+Rictus uses OpenSSL for TLS rather than implementing cryptography internally.
+
+The TLS client requires peer certificate verification, loads the platform OpenSSL trust paths, sends SNI for the configured IRC hostname, and verifies that the peer certificate matches that hostname. A successful TCP connection is not treated as a successful TLS connection.
 
 ### Configuration
 
-Rictus uses `rictus.json` as its local runtime configuration file. Configuration semantics are common across Windows and Linux.
-
-The initial IRC configuration contains explicit server, port, TLS, username, password, and channel fields. The local credential-bearing file is not tracked by Git; `rictus.json.example` documents the contract.
+Rictus uses `rictus.json` as its local runtime configuration file with common semantics on Windows and Linux. The local credential-bearing file is not tracked by Git; `rictus.json.example` documents the contract.
 
 ### Build entry points
 
 - Windows: `build.cmd`
 - Linux: `Makefile`
 
-Windows uses the MSVC command-line compiler. Linux uses a C17 compiler selected through `CC`.
-
-The Visual Studio IDE/MSBuild project workflow is not required. CMake is not required.
+Windows uses MSVC command-line tools. Linux uses a C17 compiler selected through `CC`. CMake and the Visual Studio IDE/MSBuild workflow are not required.
 
 ### Modules
 
-Rictus supports hot-loadable modules. Platform-native module artifacts may differ while module contracts and behavior remain common.
+Rictus supports hot-loadable modules. Platform-native artifacts may differ while module contracts and behavior remain common.
 
 ### Historical implementation
 
@@ -55,11 +53,8 @@ None currently recorded.
 
 ## Open choices
 
-Implementation details not yet established include:
-
-- TLS dependency;
 - runtime/state and logging locations;
 - module binary/loading contract details;
-- final build output layout beyond the bootstrap targets.
+- final build output layout beyond the current targets.
 
 Open choices remain open until explicitly decided and documented.
