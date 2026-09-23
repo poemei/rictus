@@ -108,6 +108,7 @@ int rictus_tls_connect(rictus_tls_connection *tls,
     memset(&credentials, 0, sizeof(credentials));
     credentials.dwVersion = SCHANNEL_CRED_VERSION;
     credentials.grbitEnabledProtocols = SP_PROT_TLS1_2_CLIENT | SP_PROT_TLS1_3_CLIENT;
+    credentials.dwFlags = SCH_CRED_AUTO_CRED_VALIDATION | SCH_CRED_NO_DEFAULT_CREDS;
 
     status = AcquireCredentialsHandleA(NULL,
                                        UNISP_NAME_A,
@@ -236,6 +237,15 @@ int rictus_tls_connect(rictus_tls_connection *tls,
 
         if (status == SEC_E_INCOMPLETE_MESSAGE) {
             continue;
+        }
+
+        if (status == SEC_I_INCOMPLETE_CREDENTIALS) {
+            /*
+             * The peer requested a client certificate. Rictus does not use
+             * certificate-based client authentication for IRC; continue the
+             * Schannel handshake without supplying one.
+             */
+            status = SEC_I_CONTINUE_NEEDED;
         }
 
         if (status != SEC_I_CONTINUE_NEEDED) {
