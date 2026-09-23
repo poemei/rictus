@@ -1,6 +1,6 @@
 ![Language](https://img.shields.io/badge/Language-ISO%20C-blue)
 ![Status](https://img.shields.io/badge/Status-Active%20Development-orange)
-![Core Qualification](https://img.shields.io/badge/Core%20Qualification-20%2F20-success)
+![Core Qualification](https://img.shields.io/badge/Core%20Qualification-00%2F20-warning)
 ![Modules](https://img.shields.io/badge/Modules-Hot--Load-success)
 
 **STN-LABZ Communications and External Intelligence Coordination Agent**
