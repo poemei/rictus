@@ -4,37 +4,36 @@
 
 ### Added
 
-- Added baseline architecture and repository documentation for the Rictus rebuild.
-- Added the common ISO C Rictus bootstrap.
-- Implemented Linux `Makefile` and Windows MSVC `build.cmd` build entry points.
-- Added common ISO C loading and validation for `rictus.json`.
-- Added the initial IRC configuration contract and Libera.Chat example for `#stn-labz`.
-- Added the common `rictus_net` TCP connection contract.
-- Added native Winsock networking under `platforms/windows/`.
-- Added native POSIX socket networking under `platforms/linux/`.
+- Added repository architecture/documentation baseline and common ISO C bootstrap.
+- Implemented Linux `Makefile` and Windows MSVC `build.cmd`.
+- Added common `rictus.json` loading and the Libera.Chat configuration contract.
+- Added common `rictus_net` TCP lifecycle with native Winsock and POSIX implementations.
+- Added an OpenSSL TLS client layer with peer verification, SNI, and hostname certificate verification.
 
 ### Changed
 
-- Removed the broken sponsor badge from the README and documented the cross-platform architecture.
-- Excluded local `rictus.json` from Git so IRC credentials are not committed.
-- Updated Windows and Linux builds to compile only their native networking implementation.
-- Updated the common runtime to connect to the configured IRC host/port through the platform-neutral networking contract and close the connection after success.
+- Excluded local credential-bearing `rictus.json` from Git.
+- Updated common startup to establish TCP and, when configured, require a verified TLS session.
+- Linux now links OpenSSL through `libssl` and `libcrypto`.
+- Windows now requires `OPENSSL_ROOT_DIR` and links the installed OpenSSL libraries.
 
 ### Validation
 
-- Linux bootstrap/configuration runtime validation completed successfully.
-- Windows bootstrap/configuration runtime validation completed successfully.
-- Networking implementation and build wiring have been reviewed, but TCP connection execution has not yet been validated on either target platform.
+- Linux bootstrap/configuration: runtime validated.
+- Windows bootstrap/configuration: runtime validated.
+- Linux TCP connection to `irc.libera.chat:6697`: runtime validated.
+- Windows TCP connection to `irc.libera.chat:6697`: runtime validated.
+- TLS implementation/build integration has been reviewed; TLS runtime success is not yet claimed.
 
 ### Limitations
 
-- TLS is not yet implemented. A TCP connection to port 6697 alone does not constitute a valid IRC/TLS session.
-- Rictus closes the TCP connection immediately after proving transport connectivity.
-- IRC registration, authentication, channel joining, session maintenance, modules, runtime state, and logging are not implemented.
+- TLS currently closes immediately after a successful verified handshake.
+- Windows requires a usable OpenSSL development installation to compile this increment.
+- IRC registration, SASL authentication, channel joining, persistent session behavior, modules, runtime state, and logging are not implemented.
 
 ### Deferred
 
-- TLS implementation/dependency decision.
-- IRC registration, authentication, channel join, and session maintenance.
+- IRC registration and SASL authentication.
+- Join and maintain `#stn-labz`.
 - Runtime-state and logging implementation.
 - Module loading implementation and validation.
