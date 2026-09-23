@@ -30,7 +30,9 @@
 - Verified the documentation paths referenced by the README are present.
 - Reviewed the bootstrap source and both build definitions.
 - Reviewed the configuration contract, bounded configuration file size, required fields, port range, and channel validation.
-- Target-platform compilation and runtime execution have not yet been performed and are not claimed.
+- Linux build/runtime validation completed: Rictus launched, loaded the Libera.Chat configuration for user `rictus` and channel `#stn-labz`, and completed initialization.
+- Windows build/runtime validation completed: Rictus launched from `build\windows`, loaded the same IRC configuration, and completed initialization.
+- The bootstrap and configuration foundation therefore have direct runtime evidence on both first-class target platforms.
 
 ### Limitations
 
