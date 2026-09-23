@@ -1,0 +1,10 @@
+{
+  "irc": {
+    "server": "irc.libera.chat",
+    "port": 6697,
+    "tls": true,
+    "username": "Rictus",
+    "password": "",
+    "channel": "#stn-labz"
+  }
+}
