@@ -29,10 +29,19 @@
 - Windows Schannel TLS handshake and certificate verification against Libera.Chat: validated.
 - The corrected Schannel context/client-certificate handling is runtime validated.
 
+### Current IRC increment
+
+- Common TLS stream I/O is implemented for Linux OpenSSL and Windows Schannel.
+- IRCv3 capability negotiation requests SASL before registration completes.
+- SASL PLAIN credentials are Base64 encoded in memory and never logged.
+- Successful SASL completes capability negotiation, waits for welcome, and joins the configured channel.
+- The persistent session answers server PING with PONG.
+- Runtime validation is pending on Windows and Linux.
+
 ### Next increment
 
-Add common IRC protocol registration and SASL authentication over the validated TLS transport, then join `#stn-labz`.
+Validate authenticated registration and persistent channel presence on both target platforms.
 
 ### Deferred
 
-IRC registration/authentication/channel join, persistent session behavior, module loading, intelligence behavior, runtime state, and logging remain future increments.
+IRC message handling beyond session maintenance, module loading, intelligence behavior, runtime state, and logging remain future increments.
