@@ -24,9 +24,14 @@ TCP connectivity to `irc.libera.chat:6697` has direct runtime evidence on Window
 
 ### TLS
 
-Rictus uses OpenSSL for TLS rather than implementing cryptography internally.
+Common Rictus code uses the `rictus_tls` interface and does not implement cryptography itself.
 
-The TLS client requires peer certificate verification, loads the platform OpenSSL trust paths, sends SNI for the configured IRC hostname, and verifies that the peer certificate matches that hostname. A successful TCP connection is not treated as a successful TLS connection.
+- Windows uses native Schannel through the Windows SDK and system certificate infrastructure.
+- Linux uses OpenSSL.
+- Windows does not require an OpenSSL development installation.
+- A successful TCP connection is not treated as TLS success.
+
+Linux OpenSSL TLS has direct runtime evidence including successful certificate and hostname verification. Windows Schannel TLS remains pending target runtime validation.
 
 ### Configuration
 
@@ -37,7 +42,7 @@ Rictus uses `rictus.json` as its local runtime configuration file with common se
 - Windows: `build.cmd`
 - Linux: `Makefile`
 
-Windows uses MSVC command-line tools. Linux uses a C17 compiler selected through `CC`. CMake and the Visual Studio IDE/MSBuild workflow are not required.
+Windows uses MSVC command-line tools and Windows SDK libraries. Linux uses a C17 compiler selected through `CC`. CMake and the Visual Studio IDE/MSBuild workflow are not required.
 
 ### Modules
 
