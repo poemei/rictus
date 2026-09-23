@@ -4,15 +4,15 @@ CPPFLAGS := -D_POSIX_C_SOURCE=200112L -Iinclude
 CFLAGS := -std=c17 -Wall -Wextra -Wpedantic
 BUILD_DIR := build/linux
 TARGET := $(BUILD_DIR)/rictus
-SOURCES := src/main.c src/rictus.c src/config.c platforms/linux/rictus_net_linux.c
-OBJECTS := $(BUILD_DIR)/main.o $(BUILD_DIR)/rictus.o $(BUILD_DIR)/config.o $(BUILD_DIR)/rictus_net_linux.o
+OBJECTS := $(BUILD_DIR)/main.o $(BUILD_DIR)/rictus.o $(BUILD_DIR)/config.o $(BUILD_DIR)/tls_openssl.o $(BUILD_DIR)/rictus_net_linux.o
+LDLIBS := -lssl -lcrypto
 
 .PHONY: all clean
 
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(OBJECTS) -o $@
+	$(CC) $(OBJECTS) $(LDLIBS) -o $@
 
 $(BUILD_DIR)/main.o: src/main.c
 	@mkdir -p $(BUILD_DIR)
@@ -23,6 +23,10 @@ $(BUILD_DIR)/rictus.o: src/rictus.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/config.o: src/config.c
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/tls_openssl.o: src/tls_openssl.c
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
