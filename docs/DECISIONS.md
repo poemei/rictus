@@ -35,7 +35,7 @@ Linux OpenSSL TLS has direct runtime evidence including successful certificate a
 
 ### IRC session
 
-Rictus uses IRCv3 capability negotiation and SASL PLAIN over the already verified TLS transport. Authentication occurs before `CAP END`; successful registration is followed by joining the configured channel. The live session responds to IRC `PING` messages with `PONG`. Credential material is not written to runtime logs.
+Rictus uses IRCv3 capability negotiation and SASL PLAIN over the already verified TLS transport. Authentication occurs before `CAP END`; successful registration is followed by joining the configured channel. The live session responds to IRC `PING` messages with `PONG`. Credential material is not written to runtime logs. Authenticated SASL registration and joining `#stn-labz` have direct runtime evidence on both Windows and Linux.
 
 ### Configuration
 
