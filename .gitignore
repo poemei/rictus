@@ -48,3 +48,6 @@ ipch/
 # Windows Explorer metadata
 Thumbs.db
 Desktop.ini
+
+# Local runtime configuration (contains credentials)
+rictus.json
