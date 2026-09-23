@@ -12,6 +12,16 @@ Cross-platform behavior is designed into the architecture. Common code must rema
 
 The project favors small, deterministic, understandable implementations and evidence from actual builds and runtime behavior over assumptions.
 
+## Intelligence scope
+
+Rictus intelligence watches and reports on STN-LABZ-related projects, ChAoS MVC alerts and possible updates, and general MVC/CMS developments when they may materially apply to that scope.
+
+Rictus is not a general security-news relay. CISA reporting updates are excluded from the Rictus alert feed.
+
+Observation alone does not create intelligence. Material must satisfy the required relevance and evidence threshold before Rictus creates an intelligence candidate, investigates it, or reports it. Material below that threshold is ignored and produces no operator report.
+
+Threshold qualification is deterministic. Probable applicability is not established applicability.
+
 ## Build policy
 
 - Windows uses `build.cmd`.
