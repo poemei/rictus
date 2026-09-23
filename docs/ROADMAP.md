@@ -15,33 +15,25 @@
 
 ### Current staging
 
-- Repository baseline established.
-- Core documentation baseline established.
-- Cross-platform architecture documented before implementation.
-- Common Rictus bootstrap source established.
-- Windows MSVC command-line build implemented and runtime validated.
-- Linux C17 Makefile build implemented and runtime validated.
-- Common JSON configuration loading and IRC configuration validation implemented and runtime validated on Windows and Linux.
-- Local credential-bearing `rictus.json` excluded from source control.
-- Libera.Chat and `#stn-labz` represented in the tracked configuration example.
+- Repository and documentation baseline established.
+- Common Rictus bootstrap established and runtime validated on Windows and Linux.
+- Common JSON configuration loading established and runtime validated on Windows and Linux.
+- Native networking platform boundary implemented.
+- Windows networking implementation uses Winsock.
+- Linux networking implementation uses POSIX sockets.
+- Common runtime now attempts a TCP connection to the configured IRC server and closes it cleanly after success.
 
 ### Validation
 
-- Linux: executable launched successfully, loaded `rictus.json`, reported the expected non-secret Libera.Chat settings, and completed initialization.
-- Windows: executable launched successfully from `build\windows`, loaded `rictus.json`, reported the same expected settings, and completed initialization.
-- Cross-platform bootstrap/configuration behavior now has direct runtime evidence on both first-class target platforms.
+- Bootstrap/configuration behavior has direct runtime evidence on Windows and Linux.
+- Networking source and build integration are implemented.
+- TCP connection behavior is pending target-platform runtime validation.
 
 ### Next increment
 
-Establish Rictus's first platform service boundary for networking:
+After Windows and Linux both demonstrate a successful TCP connection, establish TLS over the common transport. TLS dependency selection remains an explicit decision and must use a mature implementation rather than a custom cryptographic implementation.
 
-- common networking contract used by Rictus;
-- native Winsock implementation on Windows;
-- native POSIX socket implementation on Linux;
-- TCP connection to the configured IRC server and port;
-- deterministic connection success/failure reporting.
-
-This increment stops at a verified TCP connection. TLS, IRC registration, authentication, channel joining, and persistent session behavior remain separate work so each boundary can be validated independently.
+IRC registration, authentication, channel joining, and persistent session behavior remain separate work after TLS is validated.
 
 ### Deferred
 
