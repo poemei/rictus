@@ -45,6 +45,12 @@ Raw IRC protocol input is parsed into bounded, platform-independent Rictus event
 
 Private IRC messages are deterministically classified before command parsing. `!help` and `!status` have direct live runtime evidence on Windows and Linux, including reply routing back to the private-message sender. Command-name matching is case-insensitive; mixed-case `!staTUS` has direct Linux runtime evidence.
 
+### Intelligence scope and threshold
+
+Rictus watches STN-LABZ-related projects, ChAoS MVC alerts and possible updates, and general MVC/CMS developments with material applicability to that scope. CISA reporting updates are excluded from its alert feed.
+
+Collected observations must meet the required deterministic relevance/evidence threshold before becoming intelligence candidates. Below-threshold material is ignored and does not create an operator report.
+
 ### Configuration
 
 Rictus uses `rictus.json` as its local runtime configuration file with common semantics on Windows and Linux. The local credential-bearing file is not tracked by Git; `rictus.json.example` documents the contract.
