@@ -46,9 +46,17 @@
 - Events are observation-only in this increment; they do not trigger commands or intelligence actions.
 - Identical JOIN event observation is runtime validated on Windows and Linux.
 
+### Current dispatch increment
+
+- Added a bounded dispatch layer above common Rictus events.
+- Channel and private messages are deterministically classified as commands when their first non-space character is `!`; other messages become observations.
+- Dispatch is classification-only: no command is executed and no intelligence action is authorized in this increment.
+- IRC protocol parsing remains isolated below the event boundary.
+- Runtime validation is pending.
+
 ### Next increment
 
-Validate message-event observation, then place bounded command/intelligence dispatch above the event contract.
+Validate message-event and dispatch behavior on both platforms, then introduce the first explicitly authorized command handler.
 
 ### Deferred
 
