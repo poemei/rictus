@@ -13,6 +13,7 @@
 - Added native Windows Schannel TLS.
 - Added common TLS send/receive operations for OpenSSL and Schannel.
 - Added common IRC registration, SASL PLAIN authentication, channel join, and persistent PING/PONG session handling.
+- Added a bounded IRC line parser and common event model for channel/private messages, joins, parts, and quits.
 
 ### Changed
 
@@ -40,6 +41,6 @@
 
 ### Deferred
 
-- IRC message handling beyond registration, SASL, join, and PING/PONG.
+- Command and intelligence behavior above the new IRC event layer.
 - Runtime-state and logging implementation.
 - Module loading implementation and validation.
