@@ -14,6 +14,7 @@
 - Added common TLS send/receive operations for OpenSSL and Schannel.
 - Added common IRC registration, SASL PLAIN authentication, channel join, and persistent PING/PONG session handling.
 - Added a bounded IRC line parser and common event model for channel/private messages, joins, parts, and quits.
+- Added bounded message dispatch that separates explicit `!` commands from passive observations without executing either.
 - Validated identical JOIN event semantics on Windows and Linux from the live Libera.Chat session.
 
 ### Changed
@@ -38,10 +39,10 @@
 ### Limitations
 
 - IRC registration, SASL authentication, channel join, and persistent online session are runtime validated on Windows and Linux.
-- IRC registration, SASL authentication, channel joining, persistent session behavior, modules, runtime state, and logging are not implemented.
+- Dispatch currently classifies message events only; command execution, intelligence behavior, modules, runtime state, and logging are not implemented.
 
 ### Deferred
 
-- Command and intelligence behavior above the new IRC event layer.
+- Command execution and intelligence behavior above the new dispatch layer.
 - Runtime-state and logging implementation.
 - Module loading implementation and validation.
