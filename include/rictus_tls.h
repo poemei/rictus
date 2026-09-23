@@ -15,6 +15,19 @@ int rictus_tls_connect(rictus_tls_connection *tls,
                        char *error,
                        size_t error_size);
 
+int rictus_tls_send(rictus_tls_connection *tls,
+                    const void *data,
+                    size_t length,
+                    char *error,
+                    size_t error_size);
+
+int rictus_tls_receive(rictus_tls_connection *tls,
+                       void *buffer,
+                       size_t buffer_size,
+                       size_t *received,
+                       char *error,
+                       size_t error_size);
+
 void rictus_tls_close(rictus_tls_connection *tls);
 
 #endif
