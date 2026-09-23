@@ -9,28 +9,27 @@
 - Native operating-system behavior remains behind explicit platform boundaries.
 - Windows builds through `build.cmd`; Linux builds through `Makefile`.
 - Runtime configuration uses `rictus.json`.
-- TLS uses a mature external implementation rather than custom cryptography.
+- TLS is exposed through one common contract with native platform implementations.
 
 ### Current staging
 
 - Bootstrap and JSON configuration are runtime validated on Windows and Linux.
 - Native Winsock and POSIX networking boundary is implemented.
 - TCP connectivity to Libera.Chat port 6697 is runtime validated on Windows and Linux.
-- OpenSSL TLS client layer is implemented above the transport.
-- TLS performs peer verification, SNI, and configured-hostname certificate verification.
-- Linux links OpenSSL through `-lssl -lcrypto`.
-- Windows build consumes an OpenSSL installation identified by `OPENSSL_ROOT_DIR`.
+- Linux TLS uses OpenSSL and is runtime validated against Libera.Chat with certificate/hostname verification.
+- Windows TLS uses native Schannel and the Windows system certificate infrastructure.
+- Windows build no longer requires OpenSSL headers, libraries, or `OPENSSL_ROOT_DIR`.
 
 ### Validation
 
-- Linux TCP connection to `irc.libera.chat:6697`: validated.
-- Windows TCP connection to `irc.libera.chat:6697`: validated.
-- TLS source/build integration: implemented.
-- TLS handshake and certificate verification: pending runtime validation on Windows and Linux.
+- Linux TCP: validated.
+- Windows TCP: validated.
+- Linux OpenSSL TLS: validated.
+- Windows Schannel build/runtime: pending validation.
 
 ### Next increment
 
-Validate the TLS handshake on both target platforms. Once both report a verified TLS session, add common IRC protocol registration and SASL authentication before joining `#stn-labz`.
+Validate the Windows Schannel build and TLS handshake. Once Windows reports a successful TLS session, add common IRC protocol registration and SASL authentication before joining `#stn-labz`.
 
 ### Deferred
 
