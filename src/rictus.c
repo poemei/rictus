@@ -3,12 +3,14 @@
 #include "rictus.h"
 #include "rictus_config.h"
 #include "rictus_net.h"
+#include "rictus_tls.h"
 
 int rictus_run(void)
 {
     rictus_config config;
     rictus_net_connection connection;
-    char error[160];
+    rictus_tls_connection tls;
+    char error[256];
 
     puts("STN-LABZ Rictus");
 
@@ -38,6 +40,21 @@ int rictus_run(void)
     }
 
     puts("[INFO] IRC transport connected.");
+
+    if (!config.irc.tls) {
+        fprintf(stderr, "[ERROR] IRC TLS is required for this Rictus connection.\n");
+        rictus_net_close(&connection);
+        return 1;
+    }
+
+    if (!rictus_tls_connect(&tls, &connection, config.irc.server, error, sizeof(error))) {
+        fprintf(stderr, "[ERROR] IRC TLS: %s\n", error);
+        rictus_net_close(&connection);
+        return 1;
+    }
+
+    puts("[INFO] IRC TLS established and certificate verified.");
+    rictus_tls_close(&tls);
     rictus_net_close(&connection);
     puts("Rictus initialized.");
 
