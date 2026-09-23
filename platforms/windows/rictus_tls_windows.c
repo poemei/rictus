@@ -18,6 +18,10 @@ typedef struct rictus_schannel_connection {
     CtxtHandle context;
     int credentials_valid;
     int context_valid;
+    SOCKET socket_value;
+    SecPkgContext_StreamSizes sizes;
+    unsigned char encrypted[65536];
+    size_t encrypted_length;
 } rictus_schannel_connection;
 
 static void set_error(char *error, size_t error_size, const char *message)
@@ -104,6 +108,7 @@ int rictus_tls_connect(rictus_tls_connection *tls,
         set_error(error, error_size, "unable to allocate TLS connection");
         return 0;
     }
+    native->socket_value = socket_value;
 
     memset(&credentials, 0, sizeof(credentials));
     credentials.dwVersion = SCHANNEL_CRED_VERSION;
@@ -232,6 +237,12 @@ int rictus_tls_connect(rictus_tls_connection *tls,
         }
 
         if (status == SEC_E_OK) {
+            if (input_buffers[1].BufferType == SECBUFFER_EXTRA &&
+                input_buffers[1].cbBuffer > 0U) {
+                size_t extra = input_buffers[1].cbBuffer;
+                memcpy(native->encrypted, input_data + input_length - extra, extra);
+                native->encrypted_length = extra;
+            }
             break;
         }
 
@@ -278,6 +289,12 @@ int rictus_tls_connect(rictus_tls_connection *tls,
         }
 
         if (status == SEC_E_OK) {
+            if (input_buffers[1].BufferType == SECBUFFER_EXTRA &&
+                input_buffers[1].cbBuffer > 0U) {
+                size_t extra = input_buffers[1].cbBuffer;
+                memcpy(native->encrypted, input_data + input_length - extra, extra);
+                native->encrypted_length = extra;
+            }
             break;
         }
 
@@ -299,8 +316,194 @@ int rictus_tls_connect(rictus_tls_connection *tls,
         }
     }
 
+    status = QueryContextAttributesA(&native->context,
+                                     SECPKG_ATTR_STREAM_SIZES,
+                                     &native->sizes);
+    if (status != SEC_E_OK) {
+        set_status_error(error, error_size, "QueryContextAttributes", status);
+        DeleteSecurityContext(&native->context);
+        FreeCredentialsHandle(&native->credentials);
+        free(native);
+        return 0;
+    }
+
     tls->native = native;
     return 1;
+}
+
+int rictus_tls_send(rictus_tls_connection *tls,
+                    const void *data,
+                    size_t length,
+                    char *error,
+                    size_t error_size)
+{
+    rictus_schannel_connection *native;
+    const unsigned char *cursor = (const unsigned char *)data;
+
+    if (tls == NULL || tls->native == NULL || (data == NULL && length > 0U)) {
+        set_error(error, error_size, "invalid TLS send request");
+        return 0;
+    }
+
+    native = (rictus_schannel_connection *)tls->native;
+    while (length > 0U) {
+        size_t chunk = length;
+        size_t packet_size;
+        unsigned char *packet;
+        SecBuffer buffers[4];
+        SecBufferDesc desc;
+        SECURITY_STATUS status;
+
+        if (chunk > native->sizes.cbMaximumMessage) {
+            chunk = native->sizes.cbMaximumMessage;
+        }
+
+        packet_size = native->sizes.cbHeader + chunk + native->sizes.cbTrailer;
+        packet = (unsigned char *)malloc(packet_size);
+        if (packet == NULL) {
+            set_error(error, error_size, "unable to allocate TLS output buffer");
+            return 0;
+        }
+
+        memcpy(packet + native->sizes.cbHeader, cursor, chunk);
+        memset(buffers, 0, sizeof(buffers));
+        buffers[0].BufferType = SECBUFFER_STREAM_HEADER;
+        buffers[0].pvBuffer = packet;
+        buffers[0].cbBuffer = native->sizes.cbHeader;
+        buffers[1].BufferType = SECBUFFER_DATA;
+        buffers[1].pvBuffer = packet + native->sizes.cbHeader;
+        buffers[1].cbBuffer = (unsigned long)chunk;
+        buffers[2].BufferType = SECBUFFER_STREAM_TRAILER;
+        buffers[2].pvBuffer = packet + native->sizes.cbHeader + chunk;
+        buffers[2].cbBuffer = native->sizes.cbTrailer;
+        buffers[3].BufferType = SECBUFFER_EMPTY;
+
+        desc.ulVersion = SECBUFFER_VERSION;
+        desc.cBuffers = 4U;
+        desc.pBuffers = buffers;
+
+        status = EncryptMessage(&native->context, 0U, &desc, 0U);
+        if (status != SEC_E_OK) {
+            free(packet);
+            set_status_error(error, error_size, "EncryptMessage", status);
+            return 0;
+        }
+
+        packet_size = buffers[0].cbBuffer + buffers[1].cbBuffer + buffers[2].cbBuffer;
+        if (!send_all(native->socket_value, packet, packet_size)) {
+            free(packet);
+            set_error(error, error_size, "unable to send TLS data");
+            return 0;
+        }
+
+        free(packet);
+        cursor += chunk;
+        length -= chunk;
+    }
+
+    return 1;
+}
+
+int rictus_tls_receive(rictus_tls_connection *tls,
+                       void *buffer,
+                       size_t buffer_size,
+                       size_t *received,
+                       char *error,
+                       size_t error_size)
+{
+    rictus_schannel_connection *native;
+
+    if (tls == NULL || tls->native == NULL || buffer == NULL ||
+        buffer_size == 0U || received == NULL) {
+        set_error(error, error_size, "invalid TLS receive request");
+        return 0;
+    }
+
+    native = (rictus_schannel_connection *)tls->native;
+    *received = 0U;
+
+    for (;;) {
+        SecBuffer buffers[4];
+        SecBufferDesc desc;
+        SECURITY_STATUS status;
+        unsigned int i;
+
+        if (native->encrypted_length == 0U) {
+            int count = recv(native->socket_value,
+                             (char *)native->encrypted,
+                             (int)sizeof(native->encrypted),
+                             0);
+            if (count <= 0) {
+                set_error(error, error_size, "TLS peer closed connection");
+                return 0;
+            }
+            native->encrypted_length = (size_t)count;
+        }
+
+        memset(buffers, 0, sizeof(buffers));
+        buffers[0].BufferType = SECBUFFER_DATA;
+        buffers[0].pvBuffer = native->encrypted;
+        buffers[0].cbBuffer = (unsigned long)native->encrypted_length;
+        buffers[1].BufferType = SECBUFFER_EMPTY;
+        buffers[2].BufferType = SECBUFFER_EMPTY;
+        buffers[3].BufferType = SECBUFFER_EMPTY;
+
+        desc.ulVersion = SECBUFFER_VERSION;
+        desc.cBuffers = 4U;
+        desc.pBuffers = buffers;
+
+        status = DecryptMessage(&native->context, &desc, 0U, NULL);
+        if (status == SEC_E_INCOMPLETE_MESSAGE) {
+            int count;
+            if (native->encrypted_length == sizeof(native->encrypted)) {
+                set_error(error, error_size, "TLS input exceeded buffer");
+                return 0;
+            }
+            count = recv(native->socket_value,
+                         (char *)native->encrypted + native->encrypted_length,
+                         (int)(sizeof(native->encrypted) - native->encrypted_length),
+                         0);
+            if (count <= 0) {
+                set_error(error, error_size, "TLS peer closed connection");
+                return 0;
+            }
+            native->encrypted_length += (size_t)count;
+            continue;
+        }
+        if (status != SEC_E_OK) {
+            set_status_error(error, error_size, "DecryptMessage", status);
+            return 0;
+        }
+
+        for (i = 0U; i < 4U; ++i) {
+            if (buffers[i].BufferType == SECBUFFER_DATA && buffers[i].cbBuffer > 0U) {
+                size_t count = buffers[i].cbBuffer;
+                if (count > buffer_size) {
+                    count = buffer_size;
+                }
+                memcpy(buffer, buffers[i].pvBuffer, count);
+                *received = count;
+            }
+        }
+
+        for (i = 0U; i < 4U; ++i) {
+            if (buffers[i].BufferType == SECBUFFER_EXTRA && buffers[i].cbBuffer > 0U) {
+                size_t extra = buffers[i].cbBuffer;
+                memmove(native->encrypted,
+                        native->encrypted + native->encrypted_length - extra,
+                        extra);
+                native->encrypted_length = extra;
+                break;
+            }
+        }
+        if (i == 4U) {
+            native->encrypted_length = 0U;
+        }
+
+        if (*received > 0U) {
+            return 1;
+        }
+    }
 }
 
 void rictus_tls_close(rictus_tls_connection *tls)
