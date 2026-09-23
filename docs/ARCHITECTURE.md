@@ -26,6 +26,8 @@ The build systems may differ where the operating systems require it, but they bu
 
 Platform-independent code must not embed operating-system-specific paths, APIs, handles, socket types, dynamic-library conventions, or filesystem assumptions.
 
+The first implemented platform service is networking. Common code uses the `rictus_net` contract without knowing the native socket representation. Windows implements that contract with Winsock and Linux implements it with native POSIX sockets.
+
 Platform-specific implementations may provide services such as:
 
 - filesystem and path handling;
