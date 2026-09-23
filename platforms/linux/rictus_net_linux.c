@@ -85,6 +85,20 @@ int rictus_net_connect(rictus_net_connection *connection,
     return 1;
 }
 
+int rictus_net_native_handle(const rictus_net_connection *connection,
+                             void **handle)
+{
+    rictus_linux_socket *native;
+
+    if (connection == NULL || connection->native == NULL || handle == NULL) {
+        return 0;
+    }
+
+    native = (rictus_linux_socket *)connection->native;
+    *handle = &native->fd;
+    return 1;
+}
+
 void rictus_net_close(rictus_net_connection *connection)
 {
     rictus_linux_socket *native;
