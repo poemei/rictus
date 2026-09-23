@@ -4,7 +4,7 @@ CPPFLAGS := -D_POSIX_C_SOURCE=200112L -Iinclude
 CFLAGS := -std=c17 -Wall -Wextra -Wpedantic
 BUILD_DIR := build/linux
 TARGET := $(BUILD_DIR)/rictus
-OBJECTS := $(BUILD_DIR)/main.o $(BUILD_DIR)/rictus.o $(BUILD_DIR)/config.o $(BUILD_DIR)/irc_message.o $(BUILD_DIR)/event.o $(BUILD_DIR)/irc.o $(BUILD_DIR)/tls_openssl.o $(BUILD_DIR)/rictus_net_linux.o
+OBJECTS := $(BUILD_DIR)/main.o $(BUILD_DIR)/rictus.o $(BUILD_DIR)/config.o $(BUILD_DIR)/irc_message.o $(BUILD_DIR)/event.o $(BUILD_DIR)/dispatch.o $(BUILD_DIR)/irc.o $(BUILD_DIR)/tls_openssl.o $(BUILD_DIR)/rictus_net_linux.o
 LDLIBS := -lssl -lcrypto
 
 .PHONY: all clean
@@ -31,6 +31,10 @@ $(BUILD_DIR)/irc_message.o: src/irc_message.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/event.o: src/event.c
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/dispatch.o: src/dispatch.c
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
