@@ -2,6 +2,8 @@
 #include <string.h>
 
 #include "rictus_irc.h"
+#include "rictus_event.h"
+#include "rictus_irc_message.h"
 
 #define IRC_LINE_MAX 1024
 #define IRC_READ_MAX 16384
@@ -217,6 +219,16 @@ int rictus_irc_run(rictus_tls_connection *tls,
             memcpy(line, pending + consumed, line_length);
             line[line_length] = '\0';
             consumed = (size_t)(newline - pending) + 1U;
+
+            {
+                rictus_irc_message message;
+                rictus_event event;
+
+                if (rictus_irc_message_parse(line, &message) &&
+                    rictus_event_from_irc(&message, config->channel, &event)) {
+                    rictus_event_observe(&event);
+                }
+            }
 
             if (strncmp(line, "PING ", 5U) == 0) {
                 char pong[IRC_LINE_MAX];
