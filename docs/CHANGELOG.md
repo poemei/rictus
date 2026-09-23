@@ -20,6 +20,9 @@
 - Validated identical JOIN event semantics on Windows and Linux from the live Libera.Chat session.
 - Validated private-message command dispatch and live `!help` / `!status` replies on Windows and Linux; command matching is case-insensitive.
 
+- Documented the bounded Rictus intelligence watch scope and deterministic relevance/evidence threshold.
+- Explicitly excluded CISA reporting updates from the Rictus alert feed.
+
 ### Changed
 
 - Excluded local credential-bearing `rictus.json` from Git.
@@ -42,7 +45,7 @@
 ### Limitations
 
 - IRC registration, SASL authentication, channel join, and persistent online session are runtime validated on Windows and Linux.
-- Dispatch currently classifies message events only; command execution, intelligence behavior, modules, runtime state, and logging are not implemented.
+- The initial command path is implemented and runtime validated; intelligence collection/qualification, modules, runtime state, and logging are not implemented.
 
 ### Deferred
 
