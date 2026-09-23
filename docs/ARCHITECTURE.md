@@ -44,6 +44,12 @@ Rictus supports hot-loadable modules. Module behavior and contracts are platform
 
 Modules must use Rictus platform interfaces for operating-system services rather than embedding platform-specific behavior in common module logic.
 
+## Intelligence boundary
+
+Rictus treats collected observations and reportable intelligence as separate states. An observation first passes scope qualification and a deterministic relevance/evidence threshold. Only qualifying material becomes an intelligence candidate for correlation or investigation and possible reporting.
+
+Material outside the established scope or below the required threshold is ignored and produces no operator report. The watch scope is STN-LABZ-related projects, ChAoS MVC alerts and possible updates, and materially applicable general MVC/CMS developments. CISA reporting updates are excluded from the Rictus alert feed.
+
 ## External interfaces
 
 External ABI and dependency details will be documented as they are established during the rebuild. No removed prototype is a compatibility requirement.
