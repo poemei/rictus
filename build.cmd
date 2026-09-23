@@ -10,7 +10,7 @@ if errorlevel 1 (
 
 if not exist build\windows mkdir build\windows
 
-cl /nologo /std:c17 /W4 /TC /Iinclude /Fo"build\windows\\" /Fe"build\windows\rictus.exe" src\main.c src\rictus.c src\config.c platforms\windows\rictus_net_windows.c platforms\windows\rictus_tls_windows.c /link ws2_32.lib secur32.lib crypt32.lib
+cl /nologo /std:c17 /W4 /TC /Iinclude /Fo"build\windows\\" /Fe"build\windows\rictus.exe" src\main.c src\rictus.c src\config.c src\irc.c platforms\windows\rictus_net_windows.c platforms\windows\rictus_tls_windows.c /link ws2_32.lib secur32.lib crypt32.lib
 if errorlevel 1 exit /b 1
 
 echo BUILD SUCCESSFUL
