@@ -2,6 +2,7 @@
 
 #include "rictus.h"
 #include "rictus_config.h"
+#include "rictus_irc.h"
 #include "rictus_net.h"
 #include "rictus_tls.h"
 
@@ -54,9 +55,15 @@ int rictus_run(void)
     }
 
     puts("[INFO] IRC TLS established and certificate verified.");
+
+    if (!rictus_irc_run(&tls, &config.irc, error, sizeof(error))) {
+        fprintf(stderr, "[ERROR] IRC session: %s\n", error);
+        rictus_tls_close(&tls);
+        rictus_net_close(&connection);
+        return 1;
+    }
+
     rictus_tls_close(&tls);
     rictus_net_close(&connection);
-    puts("Rictus initialized.");
-
     return 0;
 }
