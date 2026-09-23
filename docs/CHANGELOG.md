@@ -16,6 +16,7 @@
 - Added a bounded IRC line parser and common event model for channel/private messages, joins, parts, and quits.
 - Added bounded message dispatch that separates explicit `!` commands from passive observations.
 - Added the first executable bounded command, `!status`, plus deterministic unknown-command handling and channel/private reply routing.
+- Added `!help` so the live command surface is self-describing, and bounded command argument capture for later handlers.
 - Validated identical JOIN event semantics on Windows and Linux from the live Libera.Chat session.
 
 ### Changed
