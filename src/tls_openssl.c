@@ -134,6 +134,66 @@ int rictus_tls_connect(rictus_tls_connection *tls,
     return 1;
 }
 
+
+int rictus_tls_send(rictus_tls_connection *tls,
+                    const void *data,
+                    size_t length,
+                    char *error,
+                    size_t error_size)
+{
+    rictus_openssl_connection *native;
+    const unsigned char *cursor = (const unsigned char *)data;
+    size_t remaining = length;
+
+    if (tls == NULL || tls->native == NULL || (data == NULL && length > 0U)) {
+        set_error(error, error_size, "invalid TLS send request");
+        return 0;
+    }
+
+    native = (rictus_openssl_connection *)tls->native;
+    while (remaining > 0U) {
+        int chunk = remaining > 16384U ? 16384 : (int)remaining;
+        int sent = SSL_write(native->ssl, cursor, chunk);
+        if (sent <= 0) {
+            set_openssl_error(error, error_size, "TLS write failed");
+            return 0;
+        }
+        cursor += (size_t)sent;
+        remaining -= (size_t)sent;
+    }
+
+    return 1;
+}
+
+int rictus_tls_receive(rictus_tls_connection *tls,
+                       void *buffer,
+                       size_t buffer_size,
+                       size_t *received,
+                       char *error,
+                       size_t error_size)
+{
+    rictus_openssl_connection *native;
+    int count;
+
+    if (tls == NULL || tls->native == NULL || buffer == NULL ||
+        buffer_size == 0U || received == NULL) {
+        set_error(error, error_size, "invalid TLS receive request");
+        return 0;
+    }
+
+    native = (rictus_openssl_connection *)tls->native;
+    count = SSL_read(native->ssl,
+                     buffer,
+                     buffer_size > 2147483647U ? 2147483647 : (int)buffer_size);
+    if (count <= 0) {
+        set_openssl_error(error, error_size, "TLS read failed");
+        return 0;
+    }
+
+    *received = (size_t)count;
+    return 1;
+}
+
 void rictus_tls_close(rictus_tls_connection *tls)
 {
     rictus_openssl_connection *native;
