@@ -52,11 +52,20 @@
 - Channel and private messages are deterministically classified as commands when their first non-space character is `!`; other messages become observations.
 - Dispatch is classification-only: no command is executed and no intelligence action is authorized in this increment.
 - IRC protocol parsing remains isolated below the event boundary.
-- Runtime validation is pending.
+- Runtime validation of dispatch remains pending.
+
+### Current command increment
+
+- Added the first bounded command parser above dispatch.
+- `!status` is the first executable command.
+- `!status` reports only established runtime state: Rictus is online with an authenticated active IRC session.
+- Unknown commands receive a deterministic unknown-command response.
+- Channel commands reply to the channel; private commands reply to the sender.
+- Runtime validation is pending on Windows and Linux.
 
 ### Next increment
 
-Validate message-event and dispatch behavior on both platforms, then introduce the first explicitly authorized command handler.
+Validate `!status` and unknown-command behavior on both platforms before adding additional command authority.
 
 ### Deferred
 
