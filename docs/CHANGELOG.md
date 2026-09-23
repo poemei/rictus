@@ -35,7 +35,7 @@
 
 ### Limitations
 
-- IRC session behavior is implemented but awaits Windows and Linux runtime validation.
+- IRC registration, SASL authentication, channel join, and persistent online session are runtime validated on Windows and Linux.
 - IRC registration, SASL authentication, channel joining, persistent session behavior, modules, runtime state, and logging are not implemented.
 
 ### Deferred
