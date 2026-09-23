@@ -64,6 +64,14 @@
 - Channel commands reply to the channel; private commands reply to the sender.
 - `!help` and `!status` private-message replies are runtime validated on Windows and Linux; mixed-case `!staTUS` is also validated on Linux.
 
+### Intelligence policy increment
+
+- Established the bounded intelligence watch scope.
+- Excluded CISA reporting updates from the Rictus alert feed.
+- Established a deterministic relevance/evidence threshold between observation and intelligence candidacy.
+- Below-threshold material is ignored and produces no operator report.
+- Intelligence collection and qualification implementation remain pending.
+
 ### Next increment
 
 Validate unknown-command behavior, then begin the first bounded operational capability above the proven command path.
