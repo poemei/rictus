@@ -241,11 +241,44 @@ int rictus_tls_connect(rictus_tls_connection *tls,
 
         if (status == SEC_I_INCOMPLETE_CREDENTIALS) {
             /*
-             * The peer requested a client certificate. Rictus does not use
-             * certificate-based client authentication for IRC; continue the
-             * Schannel handshake without supplying one.
+             * Schannel has no client certificate to supply. Re-enter the
+             * existing context immediately with the same peer token so
+             * Schannel can continue anonymously; do not wait for another
+             * network record that the peer has no reason to send.
              */
-            status = SEC_I_CONTINUE_NEEDED;
+            memset(&output_buffer, 0, sizeof(output_buffer));
+            output_buffer.BufferType = SECBUFFER_TOKEN;
+
+            status = InitializeSecurityContextA(&native->credentials,
+                                                &native->context,
+                                                (SEC_CHAR *)host,
+                                                request_flags,
+                                                0U,
+                                                SECURITY_NATIVE_DREP,
+                                                &input_desc,
+                                                0U,
+                                                &native->context,
+                                                &output_desc,
+                                                &context_attributes,
+                                                &expiry);
+
+            if (output_buffer.pvBuffer != NULL && output_buffer.cbBuffer > 0U) {
+                if (!send_all(socket_value,
+                              (const unsigned char *)output_buffer.pvBuffer,
+                              output_buffer.cbBuffer)) {
+                    FreeContextBuffer(output_buffer.pvBuffer);
+                    DeleteSecurityContext(&native->context);
+                    FreeCredentialsHandle(&native->credentials);
+                    free(native);
+                    set_error(error, error_size, "unable to send TLS handshake data");
+                    return 0;
+                }
+                FreeContextBuffer(output_buffer.pvBuffer);
+            }
+        }
+
+        if (status == SEC_E_OK) {
+            break;
         }
 
         if (status != SEC_I_CONTINUE_NEEDED) {
