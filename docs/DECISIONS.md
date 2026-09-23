@@ -33,6 +33,10 @@ Common Rictus code uses the `rictus_tls` interface and does not implement crypto
 
 Linux OpenSSL TLS has direct runtime evidence including successful certificate and hostname verification. Windows Schannel TLS has direct runtime evidence of a successful handshake and certificate verification against Libera.Chat.
 
+### IRC session
+
+Rictus uses IRCv3 capability negotiation and SASL PLAIN over the already verified TLS transport. Authentication occurs before `CAP END`; successful registration is followed by joining the configured channel. The live session responds to IRC `PING` messages with `PONG`. Credential material is not written to runtime logs.
+
 ### Configuration
 
 Rictus uses `rictus.json` as its local runtime configuration file with common semantics on Windows and Linux. The local credential-bearing file is not tracked by Git; `rictus.json.example` documents the contract.
