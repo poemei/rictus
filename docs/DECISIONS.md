@@ -14,10 +14,16 @@ Common behavior will remain platform-independent. Operating-system-specific beha
 
 Rictus is implemented in ISO C.
 
+### Source baseline
+
+The initial executable uses common source code under `src/` with public project declarations under `include/`. Platform-specific source directories will be introduced only when an implementation actually requires an operating-system boundary.
+
 ### Build entry points
 
 - Windows: `build.cmd`
 - Linux: `Makefile`
+
+Windows uses the MSVC command-line compiler. Linux uses a C17 compiler selected through `CC`.
 
 The Visual Studio IDE/MSBuild project workflow is not required. CMake is not required.
 
@@ -37,12 +43,11 @@ None currently recorded.
 
 Implementation details not yet established include:
 
-- final source-tree layout;
 - platform interface surface;
 - dependency set;
 - configuration format and discovery;
 - runtime/state and logging locations;
 - module binary/loading contract details;
-- build output layout.
+- final build output layout beyond the bootstrap targets.
 
 Open choices remain open until explicitly decided and documented.
