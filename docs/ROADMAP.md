@@ -59,13 +59,14 @@
 - Added the first bounded command parser above dispatch.
 - `!status` is the first executable command.
 - `!status` reports only established runtime state: Rictus is online with an authenticated active IRC session.
+- `!help` reports the bounded command surface currently implemented.
 - Unknown commands receive a deterministic unknown-command response.
 - Channel commands reply to the channel; private commands reply to the sender.
 - Runtime validation is pending on Windows and Linux.
 
 ### Next increment
 
-Validate `!status` and unknown-command behavior on both platforms before adding additional command authority.
+Validate `!status`, `!help`, and unknown-command behavior on both platforms before adding operational command authority.
 
 ### Deferred
 
