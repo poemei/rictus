@@ -36,11 +36,11 @@
 - SASL PLAIN credentials are Base64 encoded in memory and never logged.
 - Successful SASL completes capability negotiation, waits for welcome, and joins the configured channel.
 - The persistent session answers server PING with PONG.
-- Runtime validation is pending on Windows and Linux.
+- Authenticated registration and join of `#stn-labz` are runtime validated on Windows and Linux.
 
 ### Next increment
 
-Validate authenticated registration and persistent channel presence on both target platforms.
+Build the first bounded IRC message-handling behavior above the now-validated cross-platform session foundation.
 
 ### Deferred
 
