@@ -16,7 +16,15 @@ Rictus is implemented in ISO C.
 
 ### Source baseline
 
-The initial executable uses common source code under `src/` with public project declarations under `include/`. Platform-specific source directories will be introduced only when an implementation actually requires an operating-system boundary.
+Common executable behavior uses source under `src/` with public project declarations under `include/`. Operating-system implementations live beneath `platforms/windows/` and `platforms/linux/` when a native boundary is required.
+
+### Platform networking
+
+Common Rictus code uses the `rictus_net` interface for TCP connection lifecycle.
+
+- Windows implements the interface with native Winsock.
+- Linux implements the interface with native POSIX sockets.
+- Native socket types and APIs do not enter common Rictus code.
 
 ### Configuration
 
@@ -49,7 +57,6 @@ None currently recorded.
 
 Implementation details not yet established include:
 
-- platform interface surface;
 - TLS dependency;
 - runtime/state and logging locations;
 - module binary/loading contract details;
