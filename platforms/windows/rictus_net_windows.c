@@ -2,6 +2,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -104,6 +105,20 @@ int rictus_net_connect(rictus_net_connection *connection,
     }
 
     connection->native = native;
+    return 1;
+}
+
+int rictus_net_native_handle(const rictus_net_connection *connection,
+                             void **handle)
+{
+    rictus_windows_socket *native;
+
+    if (connection == NULL || connection->native == NULL || handle == NULL) {
+        return 0;
+    }
+
+    native = (rictus_windows_socket *)connection->native;
+    *handle = (void *)(uintptr_t)native->socket;
     return 1;
 }
 
