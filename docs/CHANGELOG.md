@@ -11,6 +11,8 @@
 - Added the common `rictus_tls` contract.
 - Added Linux OpenSSL TLS.
 - Added native Windows Schannel TLS.
+- Added common TLS send/receive operations for OpenSSL and Schannel.
+- Added common IRC registration, SASL PLAIN authentication, channel join, and persistent PING/PONG session handling.
 
 ### Changed
 
@@ -33,12 +35,11 @@
 
 ### Limitations
 
-- TLS currently closes immediately after a successful handshake.
+- IRC session behavior is implemented but awaits Windows and Linux runtime validation.
 - IRC registration, SASL authentication, channel joining, persistent session behavior, modules, runtime state, and logging are not implemented.
 
 ### Deferred
 
-- IRC registration and SASL authentication.
-- Join and maintain `#stn-labz`.
+- IRC message handling beyond registration, SASL, join, and PING/PONG.
 - Runtime-state and logging implementation.
 - Module loading implementation and validation.
