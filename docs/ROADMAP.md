@@ -26,12 +26,12 @@
 - Windows TCP: validated.
 - Linux OpenSSL TLS: validated.
 - Windows Schannel build: validated.
-- Initial Windows Schannel handshake reached the peer but returned `SEC_I_INCOMPLETE_CREDENTIALS`.
-- Schannel client-certificate handling has been corrected; Windows TLS runtime retest is pending.
+- Windows Schannel TLS handshake and certificate verification against Libera.Chat: validated.
+- The corrected Schannel context/client-certificate handling is runtime validated.
 
 ### Next increment
 
-Validate the Windows Schannel build and TLS handshake. Once Windows reports a successful TLS session, add common IRC protocol registration and SASL authentication before joining `#stn-labz`.
+Add common IRC protocol registration and SASL authentication over the validated TLS transport, then join `#stn-labz`.
 
 ### Deferred
 
