@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "rictus_irc.h"
+#include "rictus_command.h"
 #include "rictus_dispatch.h"
 #include "rictus_event.h"
 #include "rictus_irc_message.h"
@@ -232,6 +233,60 @@ int rictus_irc_run(rictus_tls_connection *tls,
                     rictus_event_observe(&event);
                     if (rictus_dispatch_event(&event, &dispatch)) {
                         rictus_dispatch_observe(&dispatch);
+
+                        if (dispatch.action == RICTUS_DISPATCH_COMMAND) {
+                            rictus_command command;
+                            char response[IRC_LINE_MAX];
+                            char wire[IRC_LINE_MAX];
+
+                            if (rictus_command_parse(&dispatch, &command) &&
+                                rictus_command_response(&command,
+                                                        response,
+                                                        sizeof(response))) {
+                                const char *reply_target = event.type == RICTUS_EVENT_PRIVATE_MESSAGE
+                                    ? config->username
+                                    : event.target;
+
+                                if (event.type == RICTUS_EVENT_PRIVATE_MESSAGE) {
+                                    const char *bang = strchr(event.source, '!');
+                                    size_t nick_length = bang == NULL
+                                        ? strlen(event.source)
+                                        : (size_t)(bang - event.source);
+
+                                    if (nick_length == 0U || nick_length >= RICTUS_IRC_PARAM_MAX) {
+                                        set_error(error,
+                                                  error_size,
+                                                  "invalid IRC private-message source");
+                                        return 0;
+                                    }
+
+                                    {
+                                        char nick[RICTUS_IRC_PARAM_MAX];
+                                        memcpy(nick, event.source, nick_length);
+                                        nick[nick_length] = '\0';
+                                        reply_target = nick;
+
+                                        (void)snprintf(wire,
+                                                       sizeof(wire),
+                                                       "PRIVMSG %s :%s",
+                                                       reply_target,
+                                                       response);
+                                        if (!send_line(tls, wire, error, error_size)) {
+                                            return 0;
+                                        }
+                                    }
+                                } else {
+                                    (void)snprintf(wire,
+                                                   sizeof(wire),
+                                                   "PRIVMSG %s :%s",
+                                                   reply_target,
+                                                   response);
+                                    if (!send_line(tls, wire, error, error_size)) {
+                                        return 0;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
