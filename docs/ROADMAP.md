@@ -44,11 +44,11 @@
 - IRC wire input is mapped into common Rictus events rather than intelligence behavior consuming protocol text directly.
 - Initial event types are channel message, private message, join, part, and quit.
 - Events are observation-only in this increment; they do not trigger commands or intelligence actions.
-- Runtime validation is pending on Windows and Linux.
+- Identical JOIN event observation is runtime validated on Windows and Linux.
 
 ### Next increment
 
-Validate identical event observation on Windows and Linux, then place bounded command/intelligence dispatch above the event contract.
+Validate message-event observation, then place bounded command/intelligence dispatch above the event contract.
 
 ### Deferred
 
