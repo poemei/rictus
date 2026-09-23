@@ -15,15 +15,18 @@
 ### Current staging
 
 - Repository baseline established.
-- Windows and Linux build entry-point placeholders established.
 - Core documentation baseline established.
 - Cross-platform architecture documented before implementation.
+- Common Rictus bootstrap source established.
+- Windows MSVC command-line build implemented.
+- Linux C17 Makefile build implemented.
 
 ### Validation
 
 - Repository/documentation structure reviewed.
-- No code build or runtime validation claimed at this stage.
+- Source/build definitions reviewed for the bootstrap increment.
+- Windows and Linux compilation and runtime execution remain pending validation on their target platforms.
 
 ### Deferred
 
-Implementation, dependency selection, configuration, platform interfaces, module loading details, and runtime behavior remain future increments until explicitly developed and validated.
+Configuration, platform service interfaces, module loading, networking, communications, intelligence behavior, runtime state, and logging remain future increments until explicitly developed and validated.
