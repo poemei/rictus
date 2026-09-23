@@ -27,7 +27,8 @@
 - Linux TCP to `irc.libera.chat:6697`: runtime validated.
 - Windows TCP to `irc.libera.chat:6697`: runtime validated.
 - Linux TLS handshake and certificate/hostname verification: runtime validated.
-- Windows Schannel TLS implementation/build integration: pending runtime validation.
+- Windows Schannel TLS reached Libera.Chat but runtime validation exposed `SEC_I_INCOMPLETE_CREDENTIALS` during the handshake.
+- Windows Schannel now disables automatic default client credentials and explicitly continues without a client certificate when the peer requests one; retest pending.
 
 ### Limitations
 
