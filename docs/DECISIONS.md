@@ -31,7 +31,7 @@ Common Rictus code uses the `rictus_tls` interface and does not implement crypto
 - Windows does not require an OpenSSL development installation.
 - A successful TCP connection is not treated as TLS success.
 
-Linux OpenSSL TLS has direct runtime evidence including successful certificate and hostname verification. Windows Schannel TLS remains pending target runtime validation.
+Linux OpenSSL TLS has direct runtime evidence including successful certificate and hostname verification. Windows Schannel TLS has direct runtime evidence of a successful handshake and certificate verification against Libera.Chat.
 
 ### Configuration
 
