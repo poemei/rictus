@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "rictus_irc.h"
+#include "rictus_dispatch.h"
 #include "rictus_event.h"
 #include "rictus_irc_message.h"
 
@@ -226,7 +227,12 @@ int rictus_irc_run(rictus_tls_connection *tls,
 
                 if (rictus_irc_message_parse(line, &message) &&
                     rictus_event_from_irc(&message, config->channel, &event)) {
+                    rictus_dispatch_result dispatch;
+
                     rictus_event_observe(&event);
+                    if (rictus_dispatch_event(&event, &dispatch)) {
+                        rictus_dispatch_observe(&dispatch);
+                    }
                 }
             }
 
