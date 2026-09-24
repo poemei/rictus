@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-#define RICTUS_CONFIG_DEFAULT_PATH "rictus.json"
+#define RICTUS_CONFIG_DEFAULT_PATH "/etc/rictus/rictus.json"
 #define RICTUS_CONFIG_SERVER_MAX 256
 #define RICTUS_CONFIG_USERNAME_MAX 64
 #define RICTUS_CONFIG_PASSWORD_MAX 256
