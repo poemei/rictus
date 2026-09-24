@@ -64,3 +64,5 @@
 - Linux link evidence exposed two leftover IRC transport objects in the Core object list. Removed `tls_openssl.o` and `rictus_net_linux.o` from the Core executable; those implementations belong only to `irc.so` after the module ownership migration.
 
 - Routed IRC startup through the Core module registry, qualification inventory, lifecycle preparation, and HUMAN authority gate. Core no longer calls the IRC qualification callback directly or bypasses activation authorization before module start. Artifact identity and enable/disable persistence remain intentionally temporary/in-memory pending the next Core state increment.
+
+- Added Core-owned persistent module state for qualification evidence and human enable/disable policy. Linux startup now restores exact recorded qualification evidence through the lifecycle path and consults persisted authorization before activation. Local runtime state lives under ignored `state/`. Artifact identity remains explicitly temporary until content-derived artifact identification is implemented.
