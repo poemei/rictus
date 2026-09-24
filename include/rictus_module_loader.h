@@ -1,0 +1,41 @@
+#ifndef RICTUS_MODULE_LOADER_H
+#define RICTUS_MODULE_LOADER_H
+
+#include "rictus_module.h"
+#include "../../ABI/includes/module_loader.h"
+
+/*
+ * Shared ABI loader contract.
+ *
+ * Rictus owns lifecycle policy; the platform loader owns only native dynamic
+ * library mechanics. Loading an artifact establishes no qualification or
+ * activation authority.
+ */
+
+#define RICTUS_MODULE_LOADER_MAX STNLABZ_MODULE_LOADER_MAX
+#define RICTUS_MODULE_LOADER_PATH_MAX STNLABZ_MODULE_LOADER_PATH_MAX
+#define RICTUS_MODULE_DESCRIPTOR_EXPORT STNLABZ_MODULE_DESCRIPTOR_EXPORT
+
+typedef stnlabz_module_loader_result_t rictus_module_loader_result_t;
+typedef stnlabz_module_get_descriptor_fn rictus_module_get_descriptor_fn;
+typedef stnlabz_loaded_module_t rictus_loaded_module_t;
+typedef stnlabz_module_loader_t rictus_module_loader_t;
+
+#define RICTUS_MODULE_LOADER_OK STNLABZ_MODULE_LOADER_OK
+#define RICTUS_MODULE_LOADER_ERR_INVALID_ARGUMENT STNLABZ_MODULE_LOADER_ERR_INVALID_ARGUMENT
+#define RICTUS_MODULE_LOADER_ERR_FULL STNLABZ_MODULE_LOADER_ERR_FULL
+#define RICTUS_MODULE_LOADER_ERR_ALREADY_LOADED STNLABZ_MODULE_LOADER_ERR_ALREADY_LOADED
+#define RICTUS_MODULE_LOADER_ERR_LOAD_FAILED STNLABZ_MODULE_LOADER_ERR_LOAD_FAILED
+#define RICTUS_MODULE_LOADER_ERR_EXPORT_MISSING STNLABZ_MODULE_LOADER_ERR_EXPORT_MISSING
+#define RICTUS_MODULE_LOADER_ERR_DESCRIPTOR_INVALID STNLABZ_MODULE_LOADER_ERR_DESCRIPTOR_INVALID
+#define RICTUS_MODULE_LOADER_ERR_ID_MISMATCH STNLABZ_MODULE_LOADER_ERR_ID_MISMATCH
+#define RICTUS_MODULE_LOADER_ERR_NOT_FOUND STNLABZ_MODULE_LOADER_ERR_NOT_FOUND
+
+#define rictus_module_loader_init stnlabz_module_loader_init
+#define rictus_module_loader_load stnlabz_module_loader_load
+#define rictus_module_loader_unload stnlabz_module_loader_unload
+#define rictus_module_loader_unload_all stnlabz_module_loader_unload_all
+#define rictus_module_loader_find stnlabz_module_loader_find
+#define rictus_module_loader_result_string stnlabz_module_loader_result_string
+
+#endif
