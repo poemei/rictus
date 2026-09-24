@@ -37,3 +37,18 @@ authorization and is never implied by qualification.
 Implementation is not considered live merely because it compiles. These cases
 must be exercised by executable acceptance tests once the Core lifecycle and
 native loader boundaries are available to the test harness.
+
+
+## Core policy surface established
+
+The Rictus-owned lifecycle layer now defines two separate operations:
+
+- `rictus_module_lifecycle_prepare()` performs discovery, ABI verification,
+  exact-artifact qualification restoration when evidence matches, or fresh
+  qualification when it does not.
+- `rictus_module_lifecycle_enable()` accepts only
+  `RICTUS_MODULE_AUTHORITY_HUMAN` before translating that decision into ABI
+  activation authorization and activation.
+
+This source contract is not runtime evidence. Executable acceptance remains
+required before the lifecycle is declared live.
