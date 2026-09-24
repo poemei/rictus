@@ -91,3 +91,5 @@ IRC module migration remains pending until the Core lifecycle is proven. Intelli
 - Core/IRC ownership cleanup: Linux Core no longer links IRC TLS or network implementations. Re-run the clean build and then exercise module-driven startup.
 
 - IRC now exercises the established Core lifecycle path: load -> discover -> verify -> qualify/restore -> human authority -> activate -> module start. Next: replace temporary artifact identity and process-start human authorization with Core-owned persistent artifact qualification and enable/disable state.
+
+- Core module state persistence is now implemented for qualification evidence and human enable/disable policy. Next prove first-run state creation and second-run qualification restoration on Linux, then replace the temporary declared artifact identity with deterministic content-derived artifact identity so changed `.so` artifacts force requalification.
