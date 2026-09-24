@@ -25,6 +25,7 @@ int rictus_run(void)
     rictus_module_loader_result_t load_result;
     rictus_module_state_result_t state_result;
     rictus_module_result_t module_result;
+    rictus_module_prepare_action_t prepare_action;
     rictus_module_host_t host = {0};
     int state_existed;
 
@@ -67,7 +68,8 @@ int rictus_run(void)
         &registry,
         &state.inventory,
         descriptor,
-        RICTUS_IRC_ARTIFACT_ID);
+        RICTUS_IRC_ARTIFACT_ID,
+        &prepare_action);
 
     if (module_result != RICTUS_MODULE_OK) {
         fprintf(stderr, "[ERROR] IRC module prepare: %s\n",
@@ -84,9 +86,15 @@ int rictus_run(void)
         return 1;
     }
 
-    printf("[INFO] IRC module qualified: %u/%u tests passed.\n",
-           record->qualification.tests_passed,
-           record->qualification.tests_executed);
+    if (prepare_action == RICTUS_MODULE_PREPARE_RESTORED) {
+        printf("[INFO] IRC module qualification restored: %u/%u tests passed.\n",
+               record->qualification.tests_passed,
+               record->qualification.tests_executed);
+    } else {
+        printf("[INFO] IRC module qualified: %u/%u tests passed.\n",
+               record->qualification.tests_passed,
+               record->qualification.tests_executed);
+    }
 
     /*
      * First state creation preserves the currently established operator
