@@ -11,6 +11,96 @@
 #define IRC_READ_MAX 16384
 #define IRC_AUTH_RAW_MAX (RICTUS_CONFIG_USERNAME_MAX * 2U + RICTUS_CONFIG_PASSWORD_MAX + 2U)
 #define IRC_AUTH_B64_MAX (((IRC_AUTH_RAW_MAX + 2U) / 3U) * 4U + 1U)
+#define RICTUS_HOST_COMMAND_MAX 32U
+
+typedef struct rictus_host_command_entry {
+    char name[RICTUS_MODULE_COMMAND_NAME_MAX];
+    rictus_module_command_handler_fn handler;
+    void *handler_context;
+} rictus_host_command_entry;
+
+static rictus_host_command_entry g_host_commands[RICTUS_HOST_COMMAND_MAX];
+static size_t g_host_command_count = 0U;
+static rictus_tls_connection *g_host_tls = NULL;
+static char g_host_channel[RICTUS_IRC_PARAM_MAX];
+
+static int host_send_message(const char *message)
+{
+    char wire[IRC_LINE_MAX];
+    char error[256];
+
+    if (message == NULL || message[0] == '\0' ||
+        g_host_tls == NULL || g_host_channel[0] == '\0') {
+        return 0;
+    }
+
+    if (snprintf(wire, sizeof(wire), "PRIVMSG %s :%s",
+                 g_host_channel, message) < 0) {
+        return 0;
+    }
+
+    return send_line(g_host_tls, wire, error, sizeof(error));
+}
+
+static int host_register_command(const char *name,
+                                 rictus_module_command_handler_fn handler,
+                                 void *handler_context)
+{
+    size_t index;
+
+    if (name == NULL || name[0] == '\0' || handler == NULL ||
+        strlen(name) >= RICTUS_MODULE_COMMAND_NAME_MAX) {
+        return 0;
+    }
+
+    for (index = 0U; index < g_host_command_count; ++index) {
+        if (strcmp(g_host_commands[index].name, name) == 0) {
+            return 0;
+        }
+    }
+
+    if (g_host_command_count >= RICTUS_HOST_COMMAND_MAX) {
+        return 0;
+    }
+
+    (void)snprintf(g_host_commands[g_host_command_count].name,
+                   sizeof(g_host_commands[g_host_command_count].name),
+                   "%s", name);
+    g_host_commands[g_host_command_count].handler = handler;
+    g_host_commands[g_host_command_count].handler_context = handler_context;
+    ++g_host_command_count;
+    return 1;
+}
+
+static int host_unregister_command(const char *name, void *handler_context)
+{
+    size_t index;
+
+    if (name == NULL) {
+        return 0;
+    }
+
+    for (index = 0U; index < g_host_command_count; ++index) {
+        if (strcmp(g_host_commands[index].name, name) == 0 &&
+            g_host_commands[index].handler_context == handler_context) {
+            g_host_commands[index] =
+                g_host_commands[g_host_command_count - 1U];
+            --g_host_command_count;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+void rictus_irc_host_init(rictus_module_host_t *host)
+{
+    if (host != NULL) {
+        host->send_message = host_send_message;
+        host->register_command = host_register_command;
+        host->unregister_command = host_unregister_command;
+    }
+}
 
 static void set_error(char *error, size_t error_size, const char *message)
 {
