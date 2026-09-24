@@ -79,3 +79,17 @@ The command changes Core-owned authorization state; it does not manufacture
 qualification and is not exposed through the module ABI. A subsequent Core
 startup translates an ENABLED record into lifecycle activation and module
 start. DISABLED remains non-operational.
+
+
+## Changed artifact live replacement
+
+When a non-IRC loaded module artifact changes while Core is running:
+
+1. If ACTIVE, Core calls the module stop callback and records STOPPED.
+2. Core unloads the previous shared object.
+3. Core loads the changed shared object.
+4. Exact-artifact qualification evidence is not reused for the changed artifact.
+5. Core runs the module qualification path and records the new evidence.
+6. Core persists the module DISABLED pending explicit human enablement.
+
+The IRC module is not hot-replaced from the watcher thread because it owns the active transport; an IRC artifact change is deferred until Core restart.
