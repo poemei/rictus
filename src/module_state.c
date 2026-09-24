@@ -26,7 +26,7 @@ static int text_valid(const char *text, size_t capacity)
 }
 
 static rictus_module_authorization_record_t *find_authorization(
-    rictus_module_state_t *state,
+    rictus_module_store_t *state,
     const char *module_id)
 {
     size_t index;
@@ -40,7 +40,7 @@ static rictus_module_authorization_record_t *find_authorization(
     return NULL;
 }
 
-void rictus_module_state_init(rictus_module_state_t *state)
+void rictus_module_state_init(rictus_module_store_t *state)
 {
     if (state != NULL) {
         memset(state, 0, sizeof(*state));
@@ -49,7 +49,7 @@ void rictus_module_state_init(rictus_module_state_t *state)
 }
 
 int rictus_module_state_enabled(
-    const rictus_module_state_t *state,
+    const rictus_module_store_t *state,
     const char *module_id)
 {
     size_t index;
@@ -68,7 +68,7 @@ int rictus_module_state_enabled(
 }
 
 rictus_module_state_result_t rictus_module_state_set_enabled(
-    rictus_module_state_t *state,
+    rictus_module_store_t *state,
     const char *module_id,
     int enabled)
 {
@@ -96,7 +96,7 @@ rictus_module_state_result_t rictus_module_state_set_enabled(
 }
 
 rictus_module_state_result_t rictus_module_state_load(
-    rictus_module_state_t *state,
+    rictus_module_store_t *state,
     const char *path)
 {
     FILE *file;
@@ -190,7 +190,7 @@ rictus_module_state_result_t rictus_module_state_load(
 }
 
 rictus_module_state_result_t rictus_module_state_save(
-    const rictus_module_state_t *state,
+    const rictus_module_store_t *state,
     const char *path)
 {
     FILE *file;
