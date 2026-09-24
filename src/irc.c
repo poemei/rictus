@@ -6,6 +6,7 @@
 #include "rictus_dispatch.h"
 #include "rictus_event.h"
 #include "rictus_irc_message.h"
+#include "rictus.h"
 
 #define IRC_LINE_MAX 1024
 #define IRC_READ_MAX 16384
@@ -30,6 +31,65 @@ static int send_line(rictus_tls_connection *tls,
 static char g_host_channel[RICTUS_IRC_PARAM_MAX];
 static rictus_irc_online_fn g_online_callback = NULL;
 static void *g_online_context = NULL;
+
+static int source_nick(const char *source, char *nick, size_t nick_size)
+{
+    const char *bang;
+    size_t length;
+
+    if (source == NULL || nick == NULL || nick_size == 0U) {
+        return 0;
+    }
+
+    bang = strchr(source, '!');
+    length = bang == NULL ? strlen(source) : (size_t)(bang - source);
+    if (length == 0U || length >= nick_size) {
+        return 0;
+    }
+
+    memcpy(nick, source, length);
+    nick[length] = '\0';
+    return 1;
+}
+
+static int handle_core_module_command(const rictus_event *event,
+                                      const rictus_command *command,
+                                      char *response,
+                                      size_t response_size)
+{
+    char nick[RICTUS_IRC_PARAM_MAX];
+    int result;
+
+    if (event == NULL || command == NULL || response == NULL ||
+        response_size == 0U) {
+        return 0;
+    }
+
+    if (strcmp(command->name, "enable") != 0 &&
+        strcmp(command->name, "disable") != 0) {
+        return 0;
+    }
+
+    if (event->type != RICTUS_EVENT_PRIVATE_MESSAGE ||
+        !source_nick(event->source, nick, sizeof(nick)) ||
+        strcmp(nick, "STN_Boss") != 0) {
+        (void)snprintf(response, response_size,
+                       "Module control requires a private command from STN_Boss.");
+        return 1;
+    }
+
+    if (command->arguments[0] == '\0') {
+        (void)snprintf(response, response_size,
+                       "Usage: !%s <module>", command->name);
+        return 1;
+    }
+
+    result = rictus_module_control(command->name, command->arguments);
+    (void)snprintf(response, response_size,
+                   result == 0 ? "%s %s." : "Unable to %s %s.",
+                   command->name, command->arguments);
+    return 1;
+}
 
 static int host_send_message(const char *message)
 {
@@ -346,9 +406,13 @@ int rictus_irc_run(rictus_tls_connection *tls,
                             char wire[IRC_LINE_MAX];
 
                             if (rictus_command_parse(&dispatch, &command) &&
-                                rictus_command_response(&command,
-                                                        response,
-                                                        sizeof(response))) {
+                                (handle_core_module_command(&event,
+                                                            &command,
+                                                            response,
+                                                            sizeof(response)) ||
+                                 rictus_command_response(&command,
+                                                         response,
+                                                         sizeof(response)))) {
                                 const char *reply_target = event.type == RICTUS_EVENT_PRIVATE_MESSAGE
                                     ? config->username
                                     : event.target;
