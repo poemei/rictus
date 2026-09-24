@@ -9,6 +9,7 @@
 #include "rictus_module_registry.h"
 #include "rictus_module_state.h"
 #include "rictus_module_watch.h"
+#include "rictus_irc.h"
 
 #define RICTUS_MODULES_PATH "build/linux/modules"
 
@@ -33,6 +34,8 @@ int rictus_run(void)
     int state_existed;
 
     puts("STN-LABZ Rictus");
+
+    rictus_irc_host_init(&host);
 
     rictus_module_loader_init(&loader);
     rictus_module_registry_init(&registry);
