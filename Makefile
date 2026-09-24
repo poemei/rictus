@@ -17,7 +17,7 @@ all: $(TARGET) $(IRC_MODULE)
 
 $(IRC_MODULE): modules/irc/src/irc_module.c
 	@mkdir -p $(BUILD_DIR)/modules
-	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -Imodules/irc/include -shared $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -Imodules/irc/include -shared modules/irc/src/irc_module.c src/config.c src/irc.c src/irc_message.c src/event.c src/dispatch.c src/command.c src/tls_openssl.c platforms/linux/rictus_net_linux.c $(LDLIBS) -o $@
 
 $(TARGET): $(OBJECTS) $(ABI_OBJECTS)
 	$(CC) $(OBJECTS) $(ABI_OBJECTS) $(LDLIBS) -o $@
