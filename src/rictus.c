@@ -6,11 +6,7 @@
 #include "rictus_module_registry.h"
 #include "rictus_module_state.h"
 
-#if defined(_WIN32)
-#define RICTUS_IRC_MODULE_PATH "build\\windows\\modules\\irc.dll"
-#else
 #define RICTUS_IRC_MODULE_PATH "build/linux/modules/irc.so"
-#endif
 
 /*
  * Artifact hashing is the next boundary. This identity remains explicit and
