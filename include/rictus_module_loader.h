@@ -1,41 +1,67 @@
 #ifndef RICTUS_MODULE_LOADER_H
 #define RICTUS_MODULE_LOADER_H
 
+#include <stddef.h>
+
 #include "rictus_module.h"
-#include "../../ABI/includes/module_loader.h"
 
 /*
- * Shared ABI loader contract.
+ * Rictus module-loader contract.
  *
- * Rictus owns lifecycle policy; the platform loader owns only native dynamic
- * library mechanics. Loading an artifact establishes no qualification or
- * activation authority.
+ * The shared ABI descriptor remains authoritative. Native library handles,
+ * paths, and loader mechanics belong to Rictus platform implementations and
+ * must not leak Windows headers into the common Core contract.
  */
 
-#define RICTUS_MODULE_LOADER_MAX STNLABZ_MODULE_LOADER_MAX
-#define RICTUS_MODULE_LOADER_PATH_MAX STNLABZ_MODULE_LOADER_PATH_MAX
-#define RICTUS_MODULE_DESCRIPTOR_EXPORT STNLABZ_MODULE_DESCRIPTOR_EXPORT
+#define RICTUS_MODULE_LOADER_MAX 32
+#define RICTUS_MODULE_LOADER_PATH_MAX 1024
+#define RICTUS_MODULE_DESCRIPTOR_EXPORT "stnlabz_module_get_descriptor"
 
-typedef stnlabz_module_loader_result_t rictus_module_loader_result_t;
-typedef stnlabz_module_get_descriptor_fn rictus_module_get_descriptor_fn;
-typedef stnlabz_loaded_module_t rictus_loaded_module_t;
-typedef stnlabz_module_loader_t rictus_module_loader_t;
+typedef enum rictus_module_loader_result {
+    RICTUS_MODULE_LOADER_OK = 0,
+    RICTUS_MODULE_LOADER_ERR_INVALID_ARGUMENT,
+    RICTUS_MODULE_LOADER_ERR_FULL,
+    RICTUS_MODULE_LOADER_ERR_ALREADY_LOADED,
+    RICTUS_MODULE_LOADER_ERR_LOAD_FAILED,
+    RICTUS_MODULE_LOADER_ERR_EXPORT_MISSING,
+    RICTUS_MODULE_LOADER_ERR_DESCRIPTOR_INVALID,
+    RICTUS_MODULE_LOADER_ERR_ID_MISMATCH,
+    RICTUS_MODULE_LOADER_ERR_NOT_FOUND
+} rictus_module_loader_result_t;
 
-#define RICTUS_MODULE_LOADER_OK STNLABZ_MODULE_LOADER_OK
-#define RICTUS_MODULE_LOADER_ERR_INVALID_ARGUMENT STNLABZ_MODULE_LOADER_ERR_INVALID_ARGUMENT
-#define RICTUS_MODULE_LOADER_ERR_FULL STNLABZ_MODULE_LOADER_ERR_FULL
-#define RICTUS_MODULE_LOADER_ERR_ALREADY_LOADED STNLABZ_MODULE_LOADER_ERR_ALREADY_LOADED
-#define RICTUS_MODULE_LOADER_ERR_LOAD_FAILED STNLABZ_MODULE_LOADER_ERR_LOAD_FAILED
-#define RICTUS_MODULE_LOADER_ERR_EXPORT_MISSING STNLABZ_MODULE_LOADER_ERR_EXPORT_MISSING
-#define RICTUS_MODULE_LOADER_ERR_DESCRIPTOR_INVALID STNLABZ_MODULE_LOADER_ERR_DESCRIPTOR_INVALID
-#define RICTUS_MODULE_LOADER_ERR_ID_MISMATCH STNLABZ_MODULE_LOADER_ERR_ID_MISMATCH
-#define RICTUS_MODULE_LOADER_ERR_NOT_FOUND STNLABZ_MODULE_LOADER_ERR_NOT_FOUND
+typedef const rictus_module_descriptor_t *(*rictus_module_get_descriptor_fn)(void);
 
-#define rictus_module_loader_init stnlabz_module_loader_init
-#define rictus_module_loader_load stnlabz_module_loader_load
-#define rictus_module_loader_unload stnlabz_module_loader_unload
-#define rictus_module_loader_unload_all stnlabz_module_loader_unload_all
-#define rictus_module_loader_find stnlabz_module_loader_find
-#define rictus_module_loader_result_string stnlabz_module_loader_result_string
+typedef struct rictus_loaded_module {
+    void *handle;
+    char module_id[RICTUS_MODULE_ID_MAX];
+    char artifact_path[RICTUS_MODULE_LOADER_PATH_MAX];
+    const rictus_module_descriptor_t *descriptor;
+} rictus_loaded_module_t;
+
+typedef struct rictus_module_loader {
+    rictus_loaded_module_t modules[RICTUS_MODULE_LOADER_MAX];
+    size_t count;
+} rictus_module_loader_t;
+
+void rictus_module_loader_init(rictus_module_loader_t *loader);
+
+rictus_module_loader_result_t rictus_module_loader_load(
+    rictus_module_loader_t *loader,
+    const char *expected_module_id,
+    const char *artifact_path,
+    const rictus_module_descriptor_t **descriptor_out);
+
+rictus_module_loader_result_t rictus_module_loader_unload(
+    rictus_module_loader_t *loader,
+    const char *module_id);
+
+void rictus_module_loader_unload_all(rictus_module_loader_t *loader);
+
+const rictus_loaded_module_t *rictus_module_loader_find(
+    const rictus_module_loader_t *loader,
+    const char *module_id);
+
+const char *rictus_module_loader_result_string(
+    rictus_module_loader_result_t result);
 
 #endif
