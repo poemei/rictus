@@ -60,3 +60,7 @@ Core lifecycle preparation reports whether qualification was freshly executed or
 ## Artifact identity
 
 Core computes SHA-256 over the exact module artifact bytes before lifecycle preparation. Qualification evidence is keyed to that 64-character lowercase digest. A changed artifact with the same module ID and semantic version must not inherit the previous artifact's qualification.
+
+## Hot-deployment observation
+
+While an operational module is running, Core watches the Linux module directory. A new `.so` must be reported as a deployment; a known module whose SHA-256 changes must be reported as an artifact change. Detection alone must not grant qualification, enablement, or activation authority.
