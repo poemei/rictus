@@ -8,7 +8,7 @@ OBJECTS := $(BUILD_DIR)/main.o $(BUILD_DIR)/rictus.o $(BUILD_DIR)/irc.o $(BUILD_
 ABI_DIR := ../ABI
 ABI_OBJECTS := $(BUILD_DIR)/abi_module.o $(BUILD_DIR)/abi_module_registry.o
 LDLIBS := -lssl -lcrypto
-CORE_LDLIBS := -ldl -lssl -lcrypto -pthread
+CORE_LDLIBS := -rdynamic -ldl -lssl -lcrypto -pthread
 
 IRC_MODULE := $(BUILD_DIR)/modules/irc.so
 
@@ -19,7 +19,7 @@ all: $(TARGET) $(IRC_MODULE)
 
 $(IRC_MODULE): modules/irc/src/irc_module.c
 	@mkdir -p $(BUILD_DIR)/modules
-	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -Imodules/irc/include -shared modules/irc/src/irc_module.c src/config.c src/irc.c src/irc_message.c src/event.c src/dispatch.c src/command.c src/tls_openssl.c platforms/linux/rictus_net_linux.c $(LDLIBS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -Imodules/irc/include -shared modules/irc/src/irc_module.c src/config.c src/tls_openssl.c platforms/linux/rictus_net_linux.c $(LDLIBS) -o $@
 
 $(TARGET): $(OBJECTS) $(ABI_OBJECTS)
 	$(CC) $(OBJECTS) $(ABI_OBJECTS) $(CORE_LDLIBS) -o $@
