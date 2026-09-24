@@ -4,7 +4,7 @@ CPPFLAGS := -D_POSIX_C_SOURCE=200112L -Iinclude
 CFLAGS := -std=c17 -Wall -Wextra -Wpedantic
 BUILD_DIR := build/linux
 TARGET := $(BUILD_DIR)/rictus
-OBJECTS := $(BUILD_DIR)/main.o $(BUILD_DIR)/rictus.o $(BUILD_DIR)/config.o $(BUILD_DIR)/irc_message.o $(BUILD_DIR)/event.o $(BUILD_DIR)/dispatch.o $(BUILD_DIR)/command.o $(BUILD_DIR)/module_inventory.o $(BUILD_DIR)/module_lifecycle.o $(BUILD_DIR)/module_loader_linux.o
+OBJECTS := $(BUILD_DIR)/main.o $(BUILD_DIR)/rictus.o $(BUILD_DIR)/config.o $(BUILD_DIR)/irc_message.o $(BUILD_DIR)/event.o $(BUILD_DIR)/dispatch.o $(BUILD_DIR)/command.o $(BUILD_DIR)/module_inventory.o $(BUILD_DIR)/module_state.o $(BUILD_DIR)/module_lifecycle.o $(BUILD_DIR)/module_loader_linux.o
 ABI_DIR := ../ABI
 ABI_OBJECTS := $(BUILD_DIR)/abi_module.o $(BUILD_DIR)/abi_module_registry.o
 LDLIBS := -lssl -lcrypto
@@ -60,6 +60,10 @@ $(BUILD_DIR)/command.o: src/command.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/module_inventory.o: src/module_inventory.c
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/module_state.o: src/module_state.c
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
