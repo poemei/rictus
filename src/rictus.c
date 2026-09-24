@@ -13,6 +13,126 @@
 
 #define RICTUS_MODULES_PATH "build/linux/modules"
 
+typedef struct rictus_online_context {
+    rictus_module_loader_t *loader;
+    rictus_module_registry_t *registry;
+    rictus_module_store_t *state;
+    rictus_module_candidate_t *candidates;
+    size_t candidate_count;
+    rictus_module_host_t *host;
+} rictus_online_context_t;
+
+static void rictus_start_online_modules(void *context)
+{
+    rictus_online_context_t *online = context;
+    rictus_module_loader_t *loader = online->loader;
+    rictus_module_registry_t *registry = online->registry;
+    rictus_module_store_t *state = online->state;
+    rictus_module_candidate_t *candidates = online->candidates;
+    size_t candidate_count = online->candidate_count;
+    rictus_module_host_t *host = online->host;
+    size_t candidate_index;
+    rictus_module_loader_result_t load_result;
+    rictus_module_state_result_t state_result;
+    rictus_module_result_t module_result;
+
+    for (candidate_index = 0U;
+         candidate_index < candidate_count;
+         ++candidate_index) {
+        const rictus_module_descriptor_t *module_descriptor = NULL;
+        const rictus_module_record_t *module_record;
+        rictus_module_prepare_action_t module_action;
+
+        if (strcmp(candidates[candidate_index].module_id, "irc") == 0) {
+            continue;
+        }
+
+        load_result = rictus_module_loader_load(
+            &loader,
+            candidates[candidate_index].module_id,
+            candidates[candidate_index].artifact_path,
+            &module_descriptor);
+        if (load_result != RICTUS_MODULE_LOADER_OK) {
+            fprintf(stderr, "[ERROR] Module load: %s result=%s\n",
+                    candidates[candidate_index].module_id,
+                    rictus_module_loader_result_string(load_result));
+            continue;
+        }
+
+        module_result = rictus_module_lifecycle_prepare(
+            &registry,
+            &state.inventory,
+            module_descriptor,
+            candidates[candidate_index].artifact_id,
+            &module_action);
+        if (module_result != RICTUS_MODULE_OK) {
+            fprintf(stderr, "[ERROR] Module prepare: %s result=%s\n",
+                    candidates[candidate_index].module_id,
+                    rictus_module_result_string(module_result));
+            continue;
+        }
+
+        module_record = rictus_module_registry_find(
+            &registry, module_descriptor->id);
+        if (module_record == NULL) {
+            fprintf(stderr, "[ERROR] Module registry missing: %s\n",
+                    candidates[candidate_index].module_id);
+            continue;
+        }
+
+        if (module_action == RICTUS_MODULE_PREPARE_RESTORED) {
+            printf("[INFO] Module qualification restored: %s %u/%u tests passed.\n",
+                   module_descriptor->id,
+                   module_record->qualification.tests_passed,
+                   module_record->qualification.tests_executed);
+        } else {
+            printf("[INFO] Module qualified: %s %u/%u tests passed.\n",
+                   module_descriptor->id,
+                   module_record->qualification.tests_passed,
+                   module_record->qualification.tests_executed);
+        }
+
+        if (!rictus_module_state_enabled(&state, module_descriptor->id)) {
+            printf("[INFO] Module disabled by human Core policy: %s\n",
+                   module_descriptor->id);
+            continue;
+        }
+
+        module_result = rictus_module_lifecycle_enable(
+            &registry,
+            module_descriptor->id,
+            RICTUS_MODULE_AUTHORITY_HUMAN);
+        if (module_result != RICTUS_MODULE_OK) {
+            fprintf(stderr, "[ERROR] Module enable: %s result=%s\n",
+                    module_descriptor->id,
+                    rictus_module_result_string(module_result));
+            continue;
+        }
+
+        module_result = module_descriptor->start(&host);
+        if (module_result != RICTUS_MODULE_OK) {
+            fprintf(stderr, "[ERROR] Module start: %s result=%s\n",
+                    module_descriptor->id,
+                    rictus_module_result_string(module_result));
+            continue;
+        }
+
+        printf("[INFO] Module enabled and started by persisted human Core authority: %s\n",
+               module_descriptor->id);
+    }
+
+    state_result = rictus_module_state_save(
+        &state, RICTUS_MODULE_STATE_PATH);
+    if (state_result != RICTUS_MODULE_STATE_OK) {
+        fprintf(stderr, "[ERROR] Module state save: %s\n",
+                rictus_module_state_result_string(state_result));
+        rictus_module_loader_unload_all(&loader);
+        return 1;
+    }
+
+
+}
+
 int rictus_run(void)
 {
     rictus_module_loader_t loader;
@@ -193,106 +313,12 @@ int rictus_run(void)
         return 1;
     }
 
-    /*
-     * Persisted human authorization is the Core control surface. A module
-     * that was hot-deployed and qualified on the previous run remains
-     * disabled until the operator explicitly changes its AUTH record.
-     * Startup now prepares every discovered non-IRC module so an authorized,
-     * qualified module can cross the same lifecycle boundary deterministically.
-     */
-    for (candidate_index = 0U;
-         candidate_index < candidate_count;
-         ++candidate_index) {
-        const rictus_module_descriptor_t *module_descriptor = NULL;
-        const rictus_module_record_t *module_record;
-        rictus_module_prepare_action_t module_action;
+    {
+        rictus_online_context_t online = {
+            &loader, &registry, &state, candidates, candidate_count, &host
+        };
 
-        if (strcmp(candidates[candidate_index].module_id, "irc") == 0) {
-            continue;
-        }
-
-        load_result = rictus_module_loader_load(
-            &loader,
-            candidates[candidate_index].module_id,
-            candidates[candidate_index].artifact_path,
-            &module_descriptor);
-        if (load_result != RICTUS_MODULE_LOADER_OK) {
-            fprintf(stderr, "[ERROR] Module load: %s result=%s\n",
-                    candidates[candidate_index].module_id,
-                    rictus_module_loader_result_string(load_result));
-            continue;
-        }
-
-        module_result = rictus_module_lifecycle_prepare(
-            &registry,
-            &state.inventory,
-            module_descriptor,
-            candidates[candidate_index].artifact_id,
-            &module_action);
-        if (module_result != RICTUS_MODULE_OK) {
-            fprintf(stderr, "[ERROR] Module prepare: %s result=%s\n",
-                    candidates[candidate_index].module_id,
-                    rictus_module_result_string(module_result));
-            continue;
-        }
-
-        module_record = rictus_module_registry_find(
-            &registry, module_descriptor->id);
-        if (module_record == NULL) {
-            fprintf(stderr, "[ERROR] Module registry missing: %s\n",
-                    candidates[candidate_index].module_id);
-            continue;
-        }
-
-        if (module_action == RICTUS_MODULE_PREPARE_RESTORED) {
-            printf("[INFO] Module qualification restored: %s %u/%u tests passed.\n",
-                   module_descriptor->id,
-                   module_record->qualification.tests_passed,
-                   module_record->qualification.tests_executed);
-        } else {
-            printf("[INFO] Module qualified: %s %u/%u tests passed.\n",
-                   module_descriptor->id,
-                   module_record->qualification.tests_passed,
-                   module_record->qualification.tests_executed);
-        }
-
-        if (!rictus_module_state_enabled(&state, module_descriptor->id)) {
-            printf("[INFO] Module disabled by human Core policy: %s\n",
-                   module_descriptor->id);
-            continue;
-        }
-
-        module_result = rictus_module_lifecycle_enable(
-            &registry,
-            module_descriptor->id,
-            RICTUS_MODULE_AUTHORITY_HUMAN);
-        if (module_result != RICTUS_MODULE_OK) {
-            fprintf(stderr, "[ERROR] Module enable: %s result=%s\n",
-                    module_descriptor->id,
-                    rictus_module_result_string(module_result));
-            continue;
-        }
-
-        module_result = module_descriptor->start(&host);
-        if (module_result != RICTUS_MODULE_OK) {
-            fprintf(stderr, "[ERROR] Module start: %s result=%s\n",
-                    module_descriptor->id,
-                    rictus_module_result_string(module_result));
-            continue;
-        }
-
-        printf("[INFO] Module enabled and started by persisted human Core authority: %s\n",
-               module_descriptor->id);
-    }
-
-    state_result = rictus_module_state_save(
-        &state, RICTUS_MODULE_STATE_PATH);
-    if (state_result != RICTUS_MODULE_STATE_OK) {
-        fprintf(stderr, "[ERROR] Module state save: %s\n",
-                rictus_module_state_result_string(state_result));
-        rictus_module_loader_unload_all(&loader);
-        return 1;
-    }
+        rictus_irc_set_online_callback(rictus_start_online_modules, &online);
 
     module_result = descriptor->start(&host);
     if (module_result != RICTUS_MODULE_OK) {
@@ -305,6 +331,7 @@ int rictus_run(void)
     rictus_module_loader_unload_all(&loader);
     return 0;
 }
+    }
 
 
 int rictus_module_control(const char *action, const char *module_id)
