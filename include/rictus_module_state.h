@@ -5,7 +5,7 @@
 
 #include "rictus_module_inventory.h"
 
-#define RICTUS_MODULE_STATE_PATH "state/modules.state"
+#define RICTUS_MODULE_STATE_PATH "/var/lib/rictus/modules.state"
 
 typedef enum rictus_module_state_result {
     RICTUS_MODULE_STATE_OK = 0,
