@@ -20,29 +20,29 @@ typedef struct rictus_module_authorization_record {
     int enabled;
 } rictus_module_authorization_record_t;
 
-typedef struct rictus_module_state {
+typedef struct rictus_module_store {
     rictus_module_inventory_t inventory;
     rictus_module_authorization_record_t authorizations[
         RICTUS_MODULE_INVENTORY_MAX];
     size_t authorization_count;
-} rictus_module_state_t;
+} rictus_module_store_t;
 
-void rictus_module_state_init(rictus_module_state_t *state);
+void rictus_module_state_init(rictus_module_store_t *state);
 
 rictus_module_state_result_t rictus_module_state_load(
-    rictus_module_state_t *state,
+    rictus_module_store_t *state,
     const char *path);
 
 rictus_module_state_result_t rictus_module_state_save(
-    const rictus_module_state_t *state,
+    const rictus_module_store_t *state,
     const char *path);
 
 int rictus_module_state_enabled(
-    const rictus_module_state_t *state,
+    const rictus_module_store_t *state,
     const char *module_id);
 
 rictus_module_state_result_t rictus_module_state_set_enabled(
-    rictus_module_state_t *state,
+    rictus_module_store_t *state,
     const char *module_id,
     int enabled);
 
