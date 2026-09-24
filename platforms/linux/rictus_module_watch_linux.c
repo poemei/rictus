@@ -1,6 +1,6 @@
 /*
  * STN-LABZ Rictus Core
- * Linux native hot-deployment observation.
+ * Linux native hot-deployment observation and qualification.
  */
 
 #include <stdio.h>
@@ -8,6 +8,7 @@
 #include <sys/inotify.h>
 #include <unistd.h>
 
+#include "rictus_module_lifecycle.h"
 #include "rictus_module_watch.h"
 
 #define RICTUS_WATCH_BUFFER 4096
@@ -18,14 +19,80 @@ static const rictus_module_candidate_t *find_candidate(
     const char *module_id)
 {
     size_t index;
-
-    for (index = 0U; index < count; ++index) {
-        if (strcmp(candidates[index].module_id, module_id) == 0) {
+    for (index = 0U; index < count; ++index)
+        if (strcmp(candidates[index].module_id, module_id) == 0)
             return &candidates[index];
-        }
+    return NULL;
+}
+
+static void prepare_deployment(
+    rictus_module_watch_t *watch,
+    const rictus_module_candidate_t *candidate)
+{
+    const rictus_module_descriptor_t *descriptor = NULL;
+    const rictus_module_record_t *record;
+    rictus_module_loader_result_t load_result;
+    rictus_module_result_t result;
+    rictus_module_prepare_action_t action;
+    rictus_module_state_result_t state_result;
+
+    load_result = rictus_module_loader_load(
+        watch->loader, candidate->module_id, candidate->artifact_path,
+        &descriptor);
+    if (load_result != RICTUS_MODULE_LOADER_OK) {
+        fprintf(stderr, "[ERROR] Module deployment load: %s result=%s\n",
+                candidate->module_id,
+                rictus_module_loader_result_string(load_result));
+        return;
     }
 
-    return NULL;
+    result = rictus_module_lifecycle_prepare(
+        watch->registry, &watch->state->inventory, descriptor,
+        candidate->artifact_id, &action);
+    if (result != RICTUS_MODULE_OK) {
+        fprintf(stderr, "[ERROR] Module deployment prepare: %s result=%s\n",
+                candidate->module_id, rictus_module_result_string(result));
+        (void)rictus_module_loader_unload(watch->loader, candidate->module_id);
+        return;
+    }
+
+    record = rictus_module_registry_find(watch->registry, descriptor->id);
+    if (record == NULL) {
+        fprintf(stderr, "[ERROR] Module deployment registry missing: %s\n",
+                candidate->module_id);
+        (void)rictus_module_loader_unload(watch->loader, candidate->module_id);
+        return;
+    }
+
+    state_result = rictus_module_state_set_enabled(
+        watch->state, descriptor->id, 0);
+    if (state_result != RICTUS_MODULE_STATE_OK) {
+        fprintf(stderr, "[ERROR] Module deployment disable state: %s result=%s\n",
+                candidate->module_id,
+                rictus_module_state_result_string(state_result));
+        (void)rictus_module_loader_unload(watch->loader, candidate->module_id);
+        return;
+    }
+
+    state_result = rictus_module_state_save(
+        watch->state, RICTUS_MODULE_STATE_PATH);
+    if (state_result != RICTUS_MODULE_STATE_OK) {
+        fprintf(stderr, "[ERROR] Module deployment state save: %s result=%s\n",
+                candidate->module_id,
+                rictus_module_state_result_string(state_result));
+        (void)rictus_module_loader_unload(watch->loader, candidate->module_id);
+        return;
+    }
+
+    if (action == RICTUS_MODULE_PREPARE_RESTORED) {
+        printf("[INFO] Module qualification restored: %s %u/%u tests passed; DISABLED pending human authority.\n",
+               descriptor->id, record->qualification.tests_passed,
+               record->qualification.tests_executed);
+    } else {
+        printf("[INFO] Module qualified: %s %u/%u tests passed; DISABLED pending human authority.\n",
+               descriptor->id, record->qualification.tests_passed,
+               record->qualification.tests_executed);
+    }
 }
 
 static void observe_scan(rictus_module_watch_t *watch)
@@ -36,11 +103,8 @@ static void observe_scan(rictus_module_watch_t *watch)
     size_t index;
 
     if (rictus_module_discovery_scan(
-            watch->modules_path,
-            current,
-            RICTUS_MODULE_LOADER_MAX,
-            &current_count,
-            &report) != RICTUS_MODULE_OK) {
+            watch->modules_path, current, RICTUS_MODULE_LOADER_MAX,
+            &current_count, &report) != RICTUS_MODULE_OK) {
         fputs("[ERROR] Module watch rescan failed.\n", stderr);
         return;
     }
@@ -53,10 +117,17 @@ static void observe_scan(rictus_module_watch_t *watch)
         if (previous == NULL) {
             printf("[INFO] Module deployment detected: %s artifact=%.*s...\n",
                    current[index].module_id, 12, current[index].artifact_id);
+            prepare_deployment(watch, &current[index]);
         } else if (strcmp(previous->artifact_id,
                           current[index].artifact_id) != 0) {
             printf("[INFO] Module artifact changed: %s artifact=%.*s...\n",
                    current[index].module_id, 12, current[index].artifact_id);
+            /*
+             * A changed loaded artifact cannot be safely replaced while code
+             * from the old image may be executing. Detection invalidates any
+             * assumption of unchanged qualification; live replacement remains
+             * a separate lifecycle boundary.
+             */
         }
     }
 
@@ -78,8 +149,7 @@ static void *watch_main(void *argument)
     }
 
     watch_descriptor = inotify_add_watch(
-        descriptor,
-        watch->modules_path,
+        descriptor, watch->modules_path,
         IN_CLOSE_WRITE | IN_MOVED_TO | IN_CREATE | IN_DELETE);
     if (watch_descriptor < 0) {
         close(descriptor);
@@ -91,14 +161,8 @@ static void *watch_main(void *argument)
 
     while (watch->running) {
         ssize_t received = read(descriptor, buffer, sizeof(buffer));
-
-        if (received < 0) {
-            break;
-        }
-
-        if (received > 0) {
-            observe_scan(watch);
-        }
+        if (received < 0) break;
+        if (received > 0) observe_scan(watch);
     }
 
     inotify_rm_watch(descriptor, watch_descriptor);
@@ -110,25 +174,29 @@ int rictus_module_watch_start(
     rictus_module_watch_t *watch,
     const char *modules_path,
     const rictus_module_candidate_t *initial,
-    size_t initial_count)
+    size_t initial_count,
+    rictus_module_loader_t *loader,
+    rictus_module_registry_t *registry,
+    rictus_module_store_t *state)
 {
     size_t path_length;
 
     if (watch == NULL || modules_path == NULL || initial == NULL ||
-        initial_count > RICTUS_MODULE_LOADER_MAX) {
-        return 0;
-    }
+        loader == NULL || registry == NULL || state == NULL ||
+        initial_count > RICTUS_MODULE_LOADER_MAX) return 0;
 
     path_length = strlen(modules_path);
-    if (path_length == 0U || path_length >= sizeof(watch->modules_path)) {
+    if (path_length == 0U || path_length >= sizeof(watch->modules_path))
         return 0;
-    }
 
     memset(watch, 0, sizeof(*watch));
     memcpy(watch->modules_path, modules_path, path_length + 1U);
     memcpy(watch->known, initial,
            initial_count * sizeof(rictus_module_candidate_t));
     watch->known_count = initial_count;
+    watch->loader = loader;
+    watch->registry = registry;
+    watch->state = state;
     watch->running = 1;
 
     if (pthread_create(&watch->thread, NULL, watch_main, watch) != 0) {
