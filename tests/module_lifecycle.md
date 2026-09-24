@@ -56,3 +56,7 @@ required before the lifecycle is declared live.
 ## Runtime observability
 
 Core lifecycle preparation reports whether qualification was freshly executed or restored from exact persisted evidence. Runtime evidence must distinguish these paths; a generic qualified message is not sufficient proof of restoration.
+
+## Artifact identity
+
+Core computes SHA-256 over the exact module artifact bytes before lifecycle preparation. Qualification evidence is keyed to that 64-character lowercase digest. A changed artifact with the same module ID and semantic version must not inherit the previous artifact's qualification.
