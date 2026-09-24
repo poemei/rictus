@@ -28,6 +28,8 @@ static int send_line(rictus_tls_connection *tls,
                      char *error,
                      size_t error_size);
 static char g_host_channel[RICTUS_IRC_PARAM_MAX];
+static rictus_irc_online_fn g_online_callback = NULL;
+static void *g_online_context = NULL;
 
 static int host_send_message(const char *message)
 {
@@ -96,6 +98,12 @@ static int host_unregister_command(const char *name, void *handler_context)
     }
 
     return 0;
+}
+
+void rictus_irc_set_online_callback(rictus_irc_online_fn callback, void *context)
+{
+    g_online_callback = callback;
+    g_online_context = context;
 }
 
 void rictus_irc_host_init(rictus_module_host_t *host)
@@ -457,6 +465,9 @@ int rictus_irc_run(rictus_tls_connection *tls,
                 joined = 1;
                 printf("[INFO] IRC joined %s.\n", config->channel);
                 puts("[INFO] Rictus online.");
+                if (g_online_callback != NULL) {
+                    g_online_callback(g_online_context);
+                }
                 continue;
             }
 
