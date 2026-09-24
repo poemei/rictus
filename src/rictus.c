@@ -8,6 +8,7 @@
 #include "rictus_module_loader.h"
 #include "rictus_module_registry.h"
 #include "rictus_module_state.h"
+#include "rictus_module_watch.h"
 
 #define RICTUS_MODULES_PATH "build/linux/modules"
 
@@ -16,6 +17,7 @@ int rictus_run(void)
     rictus_module_loader_t loader;
     rictus_module_registry_t registry;
     rictus_module_store_t state;
+    rictus_module_watch_t watch;
     const rictus_module_descriptor_t *descriptor = NULL;
     const rictus_module_record_t *record;
     rictus_module_candidate_t candidates[RICTUS_MODULE_LOADER_MAX];
@@ -174,6 +176,16 @@ int rictus_run(void)
     }
 
     puts("[INFO] IRC module enabled by persisted human Core authority.");
+
+    if (!rictus_module_watch_start(
+            &watch,
+            RICTUS_MODULES_PATH,
+            candidates,
+            candidate_count)) {
+        fputs("[ERROR] Module hot-deployment watch failed.\n", stderr);
+        rictus_module_loader_unload_all(&loader);
+        return 1;
+    }
 
     module_result = descriptor->start(&host);
     if (module_result != RICTUS_MODULE_OK) {
