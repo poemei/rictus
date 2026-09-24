@@ -20,7 +20,7 @@
 - Validated identical JOIN event semantics on Windows and Linux from the live Libera.Chat session.
 - Validated private-message command dispatch and live `!help` / `!status` replies on Windows and Linux; command matching is case-insensitive.
 - Added the top-level `tests/` directory for feature acceptance tests before features are treated as live.
-- Restored the Rictus Core bridge to the shared sibling STN-LABZ module ABI and its Core-owned module registry contract from the prior implementation.
+- Restored the Rictus Core bridge to the shared sibling STN-LABZ module ABI and its Core-owned module registry contract from the prior implementation.\n- Restored and modernized the Core-owned qualification inventory contract. Qualification evidence now identifies the exact module artifact in addition to module/version/Core API metadata, so a changed binary cannot inherit prior qualification merely by retaining the same version.\n- Added Core module lifecycle acceptance criteria under `tests/`, including qualification/enablement separation and the prohibition on module self-enablement.
 
 - Documented the bounded Rictus intelligence watch scope and deterministic relevance/evidence threshold.
 - Explicitly excluded CISA reporting updates from the Rictus alert feed.
@@ -44,7 +44,7 @@
 - Windows Schannel TLS reached Libera.Chat but runtime validation exposed `SEC_I_INCOMPLETE_CREDENTIALS` during the handshake.
 - Windows Schannel now disables automatic default client credentials and preserves the same security context across every `InitializeSecurityContext` handshake leg.
 - The `SEC_I_INCOMPLETE_CREDENTIALS` path now re-enters Schannel immediately instead of incorrectly waiting for another peer record; the corrected handshake is runtime validated.
-- The restored module ABI/registry bridge is source-integrated only in this increment; it is not yet part of the default executable build and has not yet been declared live.
+- The restored module ABI/registry bridge and qualification inventory are source-integrated only; they are not part of the default executable build and have not been declared live.\n- The qualification inventory is intentionally in-memory at this stage. Persistent storage and native path handling remain a later Core boundary.
 
 ### Limitations
 
@@ -54,7 +54,7 @@
 
 ### Deferred
 
-- Core module discovery/loading and native Windows/Linux loader boundaries.
+- Core module discovery/loading and native Windows/Linux loader boundaries.\n- Persistent Core qualification storage after the artifact identity and lifecycle semantics are proven.
 - IRC migration from executable Core path into its own module after the Core lifecycle is proven.
 - Additional command authority and intelligence behavior above the new dispatch layer.
 - Runtime-state and logging implementation.
