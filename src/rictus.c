@@ -1,10 +1,10 @@
 #include <stdio.h>
 
 #include "rictus.h"
-#include "rictus_module_inventory.h"
 #include "rictus_module_lifecycle.h"
 #include "rictus_module_loader.h"
 #include "rictus_module_registry.h"
+#include "rictus_module_state.h"
 
 #if defined(_WIN32)
 #define RICTUS_IRC_MODULE_PATH "build\\windows\\modules\\irc.dll"
@@ -13,9 +13,9 @@
 #endif
 
 /*
- * Temporary artifact identity used only until Core-owned artifact hashing and
- * persisted qualification evidence are established. Because the inventory is
- * currently in-memory, this does not survive process restart.
+ * Artifact hashing is the next boundary. This identity remains explicit and
+ * temporary; persisted qualification is therefore valid only for this declared
+ * identity and must not be mistaken for content-derived artifact proof.
  */
 #define RICTUS_IRC_ARTIFACT_ID "runtime:irc:1.0.0"
 
@@ -23,18 +23,31 @@ int rictus_run(void)
 {
     rictus_module_loader_t loader;
     rictus_module_registry_t registry;
-    rictus_module_inventory_t inventory;
+    rictus_module_state_t state;
     const rictus_module_descriptor_t *descriptor = NULL;
     const rictus_module_record_t *record;
     rictus_module_loader_result_t load_result;
+    rictus_module_state_result_t state_result;
     rictus_module_result_t module_result;
     rictus_module_host_t host = {0};
+    int state_existed;
 
     puts("STN-LABZ Rictus");
 
     rictus_module_loader_init(&loader);
     rictus_module_registry_init(&registry);
-    rictus_module_inventory_init(&inventory);
+    rictus_module_state_init(&state);
+
+    state_result = rictus_module_state_load(
+        &state, RICTUS_MODULE_STATE_PATH);
+    state_existed = state_result == RICTUS_MODULE_STATE_OK;
+
+    if (state_result != RICTUS_MODULE_STATE_OK &&
+        state_result != RICTUS_MODULE_STATE_NOT_FOUND) {
+        fprintf(stderr, "[ERROR] Module state load: %s\n",
+                rictus_module_state_result_string(state_result));
+        return 1;
+    }
 
     load_result = rictus_module_loader_load(
         &loader,
@@ -56,7 +69,7 @@ int rictus_run(void)
 
     module_result = rictus_module_lifecycle_prepare(
         &registry,
-        &inventory,
+        &state.inventory,
         descriptor,
         RICTUS_IRC_ARTIFACT_ID);
 
@@ -80,12 +93,36 @@ int rictus_run(void)
            record->qualification.tests_executed);
 
     /*
-     * The startup invocation is currently the human-originated enable action.
-     * Unlike the previous bootstrap, this now crosses the Core lifecycle
-     * authority boundary. A module has no path to manufacture HUMAN authority.
-     *
-     * Persistent human enable/disable policy remains the next Core state step.
+     * First state creation preserves the currently established operator
+     * decision: starting Rictus means IRC is enabled. After that point the
+     * persisted Core-owned authorization record is authoritative.
      */
+    if (!state_existed) {
+        state_result = rictus_module_state_set_enabled(
+            &state, descriptor->id, 1);
+        if (state_result != RICTUS_MODULE_STATE_OK) {
+            fprintf(stderr, "[ERROR] IRC authorization state: %s\n",
+                    rictus_module_state_result_string(state_result));
+            rictus_module_loader_unload_all(&loader);
+            return 1;
+        }
+    }
+
+    state_result = rictus_module_state_save(
+        &state, RICTUS_MODULE_STATE_PATH);
+    if (state_result != RICTUS_MODULE_STATE_OK) {
+        fprintf(stderr, "[ERROR] Module state save: %s\n",
+                rictus_module_state_result_string(state_result));
+        rictus_module_loader_unload_all(&loader);
+        return 1;
+    }
+
+    if (!rictus_module_state_enabled(&state, descriptor->id)) {
+        puts("[INFO] IRC module qualified and disabled by human Core policy.");
+        rictus_module_loader_unload_all(&loader);
+        return 0;
+    }
+
     module_result = rictus_module_lifecycle_enable(
         &registry,
         descriptor->id,
@@ -98,7 +135,7 @@ int rictus_run(void)
         return 1;
     }
 
-    puts("[INFO] IRC module enabled by human Core authority.");
+    puts("[INFO] IRC module enabled by persisted human Core authority.");
 
     module_result = descriptor->start(&host);
     if (module_result != RICTUS_MODULE_OK) {
