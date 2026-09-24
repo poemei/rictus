@@ -60,3 +60,5 @@
 - Runtime-state and logging implementation.
 
 - Corrected the common module-loader boundary after Linux build evidence exposed a Windows header dependency in the shared loader header. Rictus now defines a platform-neutral loader contract and keeps native handles/mechanics inside Windows/Linux implementations.
+
+- Linux link evidence exposed two leftover IRC transport objects in the Core object list. Removed `tls_openssl.o` and `rictus_net_linux.o` from the Core executable; those implementations belong only to `irc.so` after the module ownership migration.
