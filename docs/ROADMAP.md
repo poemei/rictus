@@ -89,3 +89,5 @@ IRC module migration remains pending until the Core lifecycle is proven. Intelli
 - Windows support has been removed. Rictus is now developed and deployed as a Linux system on the retained VPS; Windows build parity is no longer a project requirement.
 
 - Qualification-path observability is established: Core explicitly reports fresh qualification versus restored qualification. Next runtime evidence should demonstrate the restored path after restart before artifact identity work begins.
+
+- Core now derives module artifact identity from SHA-256 of the exact shared-object bytes. Next runtime evidence must show: current artifact performs one fresh qualification because the old temporary identity cannot match; immediate restart restores qualification; rebuilding/changing `irc.so` produces a different identity and forces fresh qualification.
