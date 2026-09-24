@@ -62,3 +62,5 @@
 - Added Core-owned persistent module state for qualification evidence and human enable/disable policy. Linux startup now restores exact recorded qualification evidence through the lifecycle path and consults persisted authorization before activation. Local runtime state lives under ignored `state/`. Artifact identity remains explicitly temporary until content-derived artifact identification is implemented.
 
 - Removed Windows build support, Win32 networking/TLS/module-loader sources, and Windows-specific build artifacts from Rictus. This deployment is now Linux-only on the retained VPS.
+
+- Core lifecycle preparation now reports whether qualification was freshly executed or restored from persisted evidence. Runtime logging no longer makes those two paths observationally ambiguous.
