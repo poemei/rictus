@@ -11,7 +11,7 @@
 #include "rictus_module_watch.h"
 #include "rictus_irc.h"
 
-#define RICTUS_MODULES_PATH "build/linux/modules"
+#define RICTUS_MODULES_PATH "/usr/local/lib/rictus/modules"
 
 static rictus_module_loader_t *g_live_loader = NULL;
 static rictus_module_registry_t *g_live_registry = NULL;
