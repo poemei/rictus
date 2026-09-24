@@ -84,7 +84,7 @@ int rictus_command_response(const rictus_command *command,
         case RICTUS_COMMAND_HELP:
             length = snprintf(response,
                               response_size,
-                              "Commands: !status, !help");
+                              "Commands: !status, !help, !enable <module>, !disable <module>");
             break;
         case RICTUS_COMMAND_UNKNOWN:
             length = snprintf(response,
