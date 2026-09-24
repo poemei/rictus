@@ -24,7 +24,7 @@
 - Linux TLS uses OpenSSL and is runtime validated against Libera.Chat with certificate/hostname verification.
 - Windows TLS uses native Schannel and the Windows system certificate infrastructure.
 - Windows build no longer requires OpenSSL headers, libraries, or `OPENSSL_ROOT_DIR`.
-- Core modernization has begun by restoring the shared STN-LABZ ABI module and registry bridge from the prior Rictus implementation.\n- Core-owned qualification inventory has been modernized around exact artifact identity, preventing changed binaries from inheriting qualification solely from an unchanged semantic version.\n- Module lifecycle acceptance criteria are established directly under `tests/`; executable evidence remains pending.\n- Rictus-owned lifecycle policy now separates preparation/qualification from human-authorized enablement above the shared ABI registry.\n- Linux `make all` and Windows `build.cmd` now compile the established Core qualification inventory and lifecycle sources; local platform build evidence remains pending.
+- Core modernization has begun by restoring the shared STN-LABZ ABI module and registry bridge from the prior Rictus implementation.\n- Core-owned qualification inventory has been modernized around exact artifact identity, preventing changed binaries from inheriting qualification solely from an unchanged semantic version.\n- Module lifecycle acceptance criteria are established directly under `tests/`; executable evidence remains pending.\n- Rictus-owned lifecycle policy now separates preparation/qualification from human-authorized enablement above the shared ABI registry.\n- Linux `make all` and Windows `build.cmd` now compile the established Core qualification inventory and lifecycle sources; local platform build evidence remains pending.\n- Shared ABI loader mechanics are bridged into Rictus and the common discovery boundary now emits candidates without granting lifecycle state or authority.
 - The restored ABI bridge expects the established sibling `../ABI/includes/` layout and is not yet wired into the default executable build.
 
 ### Validation
@@ -80,7 +80,7 @@
 
 ### Next increment
 
-Continue Core modernization from the prior implementation. The lifecycle policy boundary is now source-established; next proceed to platform-independent discovery/change recognition contracts and native Windows/Linux loading boundaries. Prove each feature under `tests/` before treating it as live.
+Continue Core modernization from the prior implementation. The common discovery contract is now source-established; next implement native Windows/Linux discovery behind that contract, then establish deterministic artifact/change recognition before any runtime wiring. Prove each feature under `tests/` before treating it as live.
 
 ### Deferred
 
