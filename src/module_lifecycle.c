@@ -10,16 +10,19 @@ rictus_module_result_t rictus_module_lifecycle_prepare(
     rictus_module_registry_t *registry,
     rictus_module_inventory_t *inventory,
     const rictus_module_descriptor_t *descriptor,
-    const char *artifact_id)
+    const char *artifact_id,
+    rictus_module_prepare_action_t *action)
 {
     const rictus_module_inventory_record_t *evidence;
     const rictus_module_record_t *record;
     rictus_module_result_t result;
 
     if (registry == NULL || inventory == NULL ||
-        descriptor == NULL || artifact_id == NULL) {
+        descriptor == NULL || artifact_id == NULL || action == NULL) {
         return RICTUS_MODULE_ERR_INVALID_ARGUMENT;
     }
+
+    *action = RICTUS_MODULE_PREPARE_NONE;
 
     result = rictus_module_registry_discover(registry, descriptor);
     if (result != RICTUS_MODULE_OK) {
@@ -39,8 +42,12 @@ rictus_module_result_t rictus_module_lifecycle_prepare(
          * The ABI registry restores qualification with activation authority
          * cleared. Core never treats persisted qualification as permission.
          */
-        return rictus_module_registry_restore_qualification(
+        result = rictus_module_registry_restore_qualification(
             registry, descriptor->id, &evidence->qualification);
+        if (result == RICTUS_MODULE_OK) {
+            *action = RICTUS_MODULE_PREPARE_RESTORED;
+        }
+        return result;
     }
 
     result = rictus_module_registry_qualify(registry, descriptor->id);
@@ -66,6 +73,7 @@ rictus_module_result_t rictus_module_lifecycle_prepare(
         return RICTUS_MODULE_ERR_QUALIFICATION;
     }
 
+    *action = RICTUS_MODULE_PREPARE_QUALIFIED;
     return RICTUS_MODULE_OK;
 }
 
