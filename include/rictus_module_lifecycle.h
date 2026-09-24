@@ -17,11 +17,18 @@ typedef enum rictus_module_authority {
     RICTUS_MODULE_AUTHORITY_HUMAN
 } rictus_module_authority_t;
 
+typedef enum rictus_module_prepare_action {
+    RICTUS_MODULE_PREPARE_NONE = 0,
+    RICTUS_MODULE_PREPARE_QUALIFIED,
+    RICTUS_MODULE_PREPARE_RESTORED
+} rictus_module_prepare_action_t;
+
 rictus_module_result_t rictus_module_lifecycle_prepare(
     rictus_module_registry_t *registry,
     rictus_module_inventory_t *inventory,
     const rictus_module_descriptor_t *descriptor,
-    const char *artifact_id);
+    const char *artifact_id,
+    rictus_module_prepare_action_t *action);
 
 rictus_module_result_t rictus_module_lifecycle_enable(
     rictus_module_registry_t *registry,
