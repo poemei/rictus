@@ -64,3 +64,18 @@ Core computes SHA-256 over the exact module artifact bytes before lifecycle prep
 ## Hot-deployment observation
 
 While an operational module is running, Core watches the Linux module directory. A new `.so` must be reported as a deployment; a known module whose SHA-256 changes must be reported as an artifact change. Detection alone must not grant qualification, enablement, or activation authority.
+
+
+## Human Core operator control
+
+Core exposes a local operator control surface:
+
+    rictus module status <module-id>
+    rictus module enable <module-id>
+    rictus module disable <module-id>
+
+Enable and disable operate only on modules with persisted qualification evidence.
+The command changes Core-owned authorization state; it does not manufacture
+qualification and is not exposed through the module ABI. A subsequent Core
+startup translates an ENABLED record into lifecycle activation and module
+start. DISABLED remains non-operational.
