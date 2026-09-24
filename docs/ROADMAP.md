@@ -87,3 +87,5 @@ Use the IRC module as the first real Core integration fixture. The direct Core I
 IRC module migration remains pending until the Core lifecycle is proven. Intelligence behavior, runtime state, and logging remain future increments.
 
 - Build evidence exposed and removed a Windows-only dependency from the common loader contract. Re-prove Linux Core/module startup before advancing lifecycle persistence.
+
+- Core/IRC ownership cleanup: Linux Core no longer links IRC TLS or network implementations. Re-run the clean build and then exercise module-driven startup.
