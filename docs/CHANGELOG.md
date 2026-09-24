@@ -58,3 +58,5 @@
 - IRC migration from executable Core path into its own module after the Core lifecycle is proven.
 - Additional command authority and intelligence behavior above the new dispatch layer.
 - Runtime-state and logging implementation.
+
+- Corrected the common module-loader boundary after Linux build evidence exposed a Windows header dependency in the shared loader header. Rictus now defines a platform-neutral loader contract and keeps native handles/mechanics inside Windows/Linux implementations.
