@@ -8,7 +8,7 @@ OBJECTS := $(BUILD_DIR)/main.o $(BUILD_DIR)/rictus.o $(BUILD_DIR)/irc.o $(BUILD_
 ABI_DIR := ../ABI
 ABI_OBJECTS := $(BUILD_DIR)/abi_module.o $(BUILD_DIR)/abi_module_registry.o
 LDLIBS := -lssl -lcrypto
-CORE_LDLIBS := -ldl -lcrypto -pthread
+CORE_LDLIBS := -ldl -lssl -lcrypto -pthread
 
 IRC_MODULE := $(BUILD_DIR)/modules/irc.so
 
