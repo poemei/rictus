@@ -52,3 +52,7 @@ The Rictus-owned lifecycle layer now defines two separate operations:
 
 This source contract is not runtime evidence. Executable acceptance remains
 required before the lifecycle is declared live.
+
+## Runtime observability
+
+Core lifecycle preparation reports whether qualification was freshly executed or restored from exact persisted evidence. Runtime evidence must distinguish these paths; a generic qualified message is not sufficient proof of restoration.
