@@ -1,0 +1,14 @@
+[Unit]
+Description=STN-LABZ Rictus
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/rictus
+WorkingDirectory=/var/lib/rictus
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
