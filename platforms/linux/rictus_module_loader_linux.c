@@ -4,6 +4,7 @@
  */
 
 #include <dlfcn.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "rictus_module_loader.h"
@@ -84,8 +85,17 @@ rictus_module_loader_result_t rictus_module_loader_load(
         return RICTUS_MODULE_LOADER_ERR_INVALID_ARGUMENT;
     }
 
+    /*
+     * dlopen() owns the useful Linux diagnostic.  Do not collapse it into
+     * LOAD_FAILED without preserving the evidence needed to fix the module.
+     */
+    (void)dlerror();
     handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
     if (handle == NULL) {
+        const char *detail = dlerror();
+        fprintf(stderr, "[ERROR] dlopen: %s: %s\n",
+                path,
+                detail != NULL ? detail : "unknown dynamic-loader error");
         return RICTUS_MODULE_LOADER_ERR_LOAD_FAILED;
     }
 
