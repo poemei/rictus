@@ -87,3 +87,5 @@ IRC module migration remains pending until the Core lifecycle is proven. Intelli
 - Core module state persistence is now implemented for qualification evidence and human enable/disable policy. Next prove first-run state creation and second-run qualification restoration on Linux, then replace the temporary declared artifact identity with deterministic content-derived artifact identity so changed `.so` artifacts force requalification.
 
 - Windows support has been removed. Rictus is now developed and deployed as a Linux system on the retained VPS; Windows build parity is no longer a project requirement.
+
+- Qualification-path observability is established: Core explicitly reports fresh qualification versus restored qualification. Next runtime evidence should demonstrate the restored path after restart before artifact identity work begins.
