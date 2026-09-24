@@ -22,6 +22,11 @@ typedef struct rictus_host_command_entry {
 static rictus_host_command_entry g_host_commands[RICTUS_HOST_COMMAND_MAX];
 static size_t g_host_command_count = 0U;
 static rictus_tls_connection *g_host_tls = NULL;
+
+static int send_line(rictus_tls_connection *tls,
+                     const char *line,
+                     char *error,
+                     size_t error_size);
 static char g_host_channel[RICTUS_IRC_PARAM_MAX];
 
 static int host_send_message(const char *message)
@@ -247,6 +252,9 @@ int rictus_irc_run(rictus_tls_connection *tls,
         set_error(error, error_size, "invalid IRC session request");
         return 0;
     }
+
+    g_host_tls = tls;
+    (void)snprintf(g_host_channel, sizeof(g_host_channel), "%s", config->channel);
 
     if (!send_line(tls, "CAP LS 302", error, error_size)) {
         return 0;
