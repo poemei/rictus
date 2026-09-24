@@ -319,18 +319,18 @@ int rictus_run(void)
 
         rictus_irc_set_online_callback(rictus_start_online_modules, &online);
 
-    module_result = descriptor->start(&host);
-    if (module_result != RICTUS_MODULE_OK) {
-        fprintf(stderr, "[ERROR] IRC module start: %s\n",
-                rictus_module_result_string(module_result));
-        rictus_module_loader_unload_all(&loader);
-        return 1;
+        module_result = descriptor->start(&host);
+        if (module_result != RICTUS_MODULE_OK) {
+            fprintf(stderr, "[ERROR] IRC module start: %s\n",
+                    rictus_module_result_string(module_result));
+            rictus_module_loader_unload_all(&loader);
+            return 1;
+        }
     }
 
     rictus_module_loader_unload_all(&loader);
     return 0;
 }
-    }
 
 
 int rictus_module_control(const char *action, const char *module_id)
