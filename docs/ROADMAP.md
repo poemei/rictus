@@ -85,3 +85,5 @@ Use the IRC module as the first real Core integration fixture. The direct Core I
 ### Deferred
 
 IRC module migration remains pending until the Core lifecycle is proven. Intelligence behavior, runtime state, and logging remain future increments.
+
+- Build evidence exposed and removed a Windows-only dependency from the common loader contract. Re-prove Linux Core/module startup before advancing lifecycle persistence.
