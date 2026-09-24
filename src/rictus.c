@@ -48,7 +48,7 @@ static void rictus_start_online_modules(void *context)
         }
 
         load_result = rictus_module_loader_load(
-            &loader,
+            loader,
             candidates[candidate_index].module_id,
             candidates[candidate_index].artifact_path,
             &module_descriptor);
@@ -60,8 +60,8 @@ static void rictus_start_online_modules(void *context)
         }
 
         module_result = rictus_module_lifecycle_prepare(
-            &registry,
-            &state.inventory,
+            registry,
+            &state->inventory,
             module_descriptor,
             candidates[candidate_index].artifact_id,
             &module_action);
@@ -73,7 +73,7 @@ static void rictus_start_online_modules(void *context)
         }
 
         module_record = rictus_module_registry_find(
-            &registry, module_descriptor->id);
+            registry, module_descriptor->id);
         if (module_record == NULL) {
             fprintf(stderr, "[ERROR] Module registry missing: %s\n",
                     candidates[candidate_index].module_id);
@@ -92,14 +92,14 @@ static void rictus_start_online_modules(void *context)
                    module_record->qualification.tests_executed);
         }
 
-        if (!rictus_module_state_enabled(&state, module_descriptor->id)) {
+        if (!rictus_module_state_enabled(state, module_descriptor->id)) {
             printf("[INFO] Module disabled by human Core policy: %s\n",
                    module_descriptor->id);
             continue;
         }
 
         module_result = rictus_module_lifecycle_enable(
-            &registry,
+            registry,
             module_descriptor->id,
             RICTUS_MODULE_AUTHORITY_HUMAN);
         if (module_result != RICTUS_MODULE_OK) {
@@ -109,7 +109,7 @@ static void rictus_start_online_modules(void *context)
             continue;
         }
 
-        module_result = module_descriptor->start(&host);
+        module_result = module_descriptor->start(host);
         if (module_result != RICTUS_MODULE_OK) {
             fprintf(stderr, "[ERROR] Module start: %s result=%s\n",
                     module_descriptor->id,
@@ -122,12 +122,11 @@ static void rictus_start_online_modules(void *context)
     }
 
     state_result = rictus_module_state_save(
-        &state, RICTUS_MODULE_STATE_PATH);
+        state, RICTUS_MODULE_STATE_PATH);
     if (state_result != RICTUS_MODULE_STATE_OK) {
         fprintf(stderr, "[ERROR] Module state save: %s\n",
                 rictus_module_state_result_string(state_result));
-        rictus_module_loader_unload_all(&loader);
-        return 1;
+        return;
     }
 
 
