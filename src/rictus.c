@@ -302,3 +302,89 @@ int rictus_run(void)
     rictus_module_loader_unload_all(&loader);
     return 0;
 }
+
+
+int rictus_module_control(const char *action, const char *module_id)
+{
+    rictus_module_store_t state;
+    rictus_module_state_result_t state_result;
+    const rictus_module_inventory_record_t *qualified = NULL;
+    size_t index;
+    int enabled;
+
+    if (action == NULL || module_id == NULL || module_id[0] == '\0') {
+        fputs("[ERROR] Invalid module control request.\n", stderr);
+        return 2;
+    }
+
+    state_result = rictus_module_state_load(&state, RICTUS_MODULE_STATE_PATH);
+    if (state_result != RICTUS_MODULE_STATE_OK) {
+        fprintf(stderr, "[ERROR] Module state load: %s\n",
+                rictus_module_state_result_string(state_result));
+        return 1;
+    }
+
+    for (index = 0U; index < state.inventory.count; ++index) {
+        if (strcmp(state.inventory.records[index].module_id, module_id) == 0) {
+            qualified = &state.inventory.records[index];
+            break;
+        }
+    }
+
+    if (qualified == NULL) {
+        fprintf(stderr,
+                "[ERROR] Module is not qualified in Core state: %s\n",
+                module_id);
+        return 1;
+    }
+
+    enabled = rictus_module_state_enabled(&state, module_id);
+
+    if (strcmp(action, "status") == 0) {
+        printf("[INFO] Module status: %s QUALIFIED %s artifact=%.*s...\n",
+               module_id,
+               enabled ? "ENABLED" : "DISABLED",
+               12,
+               qualified->artifact_id);
+        return 0;
+    }
+
+    if (strcmp(action, "enable") == 0) {
+        if (enabled) {
+            printf("[INFO] Module already enabled by human Core policy: %s\n",
+                   module_id);
+            return 0;
+        }
+        enabled = 1;
+    } else if (strcmp(action, "disable") == 0) {
+        if (!enabled) {
+            printf("[INFO] Module already disabled by human Core policy: %s\n",
+                   module_id);
+            return 0;
+        }
+        enabled = 0;
+    } else {
+        fprintf(stderr, "[ERROR] Unknown module control action: %s\n", action);
+        return 2;
+    }
+
+    state_result = rictus_module_state_set_enabled(
+        &state, module_id, enabled);
+    if (state_result != RICTUS_MODULE_STATE_OK) {
+        fprintf(stderr, "[ERROR] Module authorization state: %s\n",
+                rictus_module_state_result_string(state_result));
+        return 1;
+    }
+
+    state_result = rictus_module_state_save(
+        &state, RICTUS_MODULE_STATE_PATH);
+    if (state_result != RICTUS_MODULE_STATE_OK) {
+        fprintf(stderr, "[ERROR] Module state save: %s\n",
+                rictus_module_state_result_string(state_result));
+        return 1;
+    }
+
+    printf("[INFO] Human Core policy: %s %s.\n",
+           module_id, enabled ? "ENABLED" : "DISABLED");
+    return 0;
+}
