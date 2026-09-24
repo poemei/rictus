@@ -23,7 +23,7 @@ int rictus_run(void)
 {
     rictus_module_loader_t loader;
     rictus_module_registry_t registry;
-    rictus_module_state_t state;
+    rictus_module_store_t state;
     const rictus_module_descriptor_t *descriptor = NULL;
     const rictus_module_record_t *record;
     rictus_module_loader_result_t load_result;
