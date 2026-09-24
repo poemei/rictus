@@ -1,4 +1,5 @@
 # Rictus Changelog
+- Linux hot deployment now safely stops, unloads, reloads, requalifies, and disables changed non-IRC module artifacts pending human authority.
 
 ## Unreleased
 
