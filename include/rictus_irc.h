@@ -7,11 +7,15 @@
 #include "rictus_module.h"
 #include "rictus_tls.h"
 
+typedef void (*rictus_irc_online_fn)(void *context);
+
 int rictus_irc_run(rictus_tls_connection *tls,
                    const rictus_irc_config *config,
                    char *error,
                    size_t error_size);
 
-typedef void (*rictus_irc_online_fn)(void *context);\n\nvoid rictus_irc_host_init(rictus_module_host_t *host);\nvoid rictus_irc_set_online_callback(rictus_irc_online_fn callback, void *context);
+void rictus_irc_host_init(rictus_module_host_t *host);
+void rictus_irc_set_online_callback(rictus_irc_online_fn callback,
+                                    void *context);
 
 #endif
