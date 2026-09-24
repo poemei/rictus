@@ -23,7 +23,7 @@
 
 #include <string.h>
 
-#include "stnlabz_module_loader.h"
+#include "rictus_module_loader.h"
 
 
 /*
