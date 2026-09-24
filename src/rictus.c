@@ -13,6 +13,11 @@
 
 #define RICTUS_MODULES_PATH "build/linux/modules"
 
+static rictus_module_loader_t *g_live_loader = NULL;
+static rictus_module_registry_t *g_live_registry = NULL;
+static rictus_module_store_t *g_live_state = NULL;
+static rictus_module_host_t *g_live_host = NULL;
+
 typedef struct rictus_online_context {
     rictus_module_loader_t *loader;
     rictus_module_registry_t *registry;
@@ -153,6 +158,11 @@ int rictus_run(void)
     int state_existed;
 
     puts("STN-LABZ Rictus");
+
+    g_live_loader = &loader;
+    g_live_registry = &registry;
+    g_live_state = &state;
+    g_live_host = &host;
 
     rictus_irc_host_init(&host);
 
@@ -335,85 +345,153 @@ int rictus_run(void)
 
 int rictus_module_control(const char *action, const char *module_id)
 {
-    rictus_module_store_t state;
+    rictus_module_store_t disk_state;
+    rictus_module_store_t *state = &disk_state;
     rictus_module_state_result_t state_result;
     const rictus_module_inventory_record_t *qualified = NULL;
+    const rictus_loaded_module_t *loaded = NULL;
+    const rictus_module_record_t *record = NULL;
+    rictus_module_result_t module_result;
     size_t index;
     int enabled;
+    int live = g_live_loader != NULL && g_live_registry != NULL &&
+               g_live_state != NULL && g_live_host != NULL;
 
     if (action == NULL || module_id == NULL || module_id[0] == '\0') {
         fputs("[ERROR] Invalid module control request.\n", stderr);
         return 2;
     }
 
-    state_result = rictus_module_state_load(&state, RICTUS_MODULE_STATE_PATH);
-    if (state_result != RICTUS_MODULE_STATE_OK) {
-        fprintf(stderr, "[ERROR] Module state load: %s\n",
-                rictus_module_state_result_string(state_result));
-        return 1;
+    if (live) {
+        state = g_live_state;
+    } else {
+        rictus_module_state_init(&disk_state);
+        state_result = rictus_module_state_load(state, RICTUS_MODULE_STATE_PATH);
+        if (state_result != RICTUS_MODULE_STATE_OK) {
+            fprintf(stderr, "[ERROR] Module state load: %s\n",
+                    rictus_module_state_result_string(state_result));
+            return 1;
+        }
     }
 
-    for (index = 0U; index < state.inventory.count; ++index) {
-        if (strcmp(state.inventory.records[index].module_id, module_id) == 0) {
-            qualified = &state.inventory.records[index];
+    for (index = 0U; index < state->inventory.count; ++index) {
+        if (strcmp(state->inventory.records[index].module_id, module_id) == 0) {
+            qualified = &state->inventory.records[index];
             break;
         }
     }
 
     if (qualified == NULL) {
-        fprintf(stderr,
-                "[ERROR] Module is not qualified in Core state: %s\n",
+        fprintf(stderr, "[ERROR] Module is not qualified in Core state: %s\n",
                 module_id);
         return 1;
     }
 
-    enabled = rictus_module_state_enabled(&state, module_id);
+    enabled = rictus_module_state_enabled(state, module_id);
 
     if (strcmp(action, "status") == 0) {
         printf("[INFO] Module status: %s QUALIFIED %s artifact=%.*s...\n",
-               module_id,
-               enabled ? "ENABLED" : "DISABLED",
-               12,
+               module_id, enabled ? "ENABLED" : "DISABLED", 12,
                qualified->artifact_id);
         return 0;
     }
 
+    if (strcmp(module_id, "irc") == 0 && live) {
+        fputs("[ERROR] Live IRC module control is not available from IRC.\n",
+              stderr);
+        return 1;
+    }
+
+    if (live) {
+        loaded = rictus_module_loader_find(g_live_loader, module_id);
+        record = rictus_module_registry_find(g_live_registry, module_id);
+    }
+
     if (strcmp(action, "enable") == 0) {
-        if (enabled) {
-            printf("[INFO] Module already enabled by human Core policy: %s\n",
-                   module_id);
+        if (live && record != NULL &&
+            record->state == RICTUS_MODULE_STATE_ACTIVE) {
+            printf("[INFO] Module already active: %s\n", module_id);
             return 0;
         }
+
+        if (live && (loaded == NULL || record == NULL)) {
+            fprintf(stderr, "[ERROR] Module is not loaded for live enable: %s\n",
+                    module_id);
+            return 1;
+        }
+
+        if (live) {
+            module_result = rictus_module_lifecycle_enable(
+                g_live_registry, module_id, RICTUS_MODULE_AUTHORITY_HUMAN);
+            if (module_result != RICTUS_MODULE_OK) {
+                fprintf(stderr, "[ERROR] Module enable: %s result=%s\n",
+                        module_id, rictus_module_result_string(module_result));
+                return 1;
+            }
+
+            module_result = loaded->descriptor->start(g_live_host);
+            if (module_result != RICTUS_MODULE_OK) {
+                fprintf(stderr, "[ERROR] Module start: %s result=%s\n",
+                        module_id, rictus_module_result_string(module_result));
+                (void)rictus_module_registry_stop(g_live_registry, module_id);
+                return 1;
+            }
+        }
+
         enabled = 1;
     } else if (strcmp(action, "disable") == 0) {
-        if (!enabled) {
+        if (live && loaded != NULL && record != NULL &&
+            record->state == RICTUS_MODULE_STATE_ACTIVE) {
+            if (loaded->descriptor->stop == NULL) {
+                fprintf(stderr, "[ERROR] Module has no stop callback: %s\n",
+                        module_id);
+                return 1;
+            }
+
+            module_result = loaded->descriptor->stop();
+            if (module_result != RICTUS_MODULE_OK) {
+                fprintf(stderr, "[ERROR] Module stop: %s result=%s\n",
+                        module_id, rictus_module_result_string(module_result));
+                return 1;
+            }
+
+            module_result = rictus_module_registry_stop(
+                g_live_registry, module_id);
+            if (module_result != RICTUS_MODULE_OK) {
+                fprintf(stderr, "[ERROR] Module registry stop: %s result=%s\n",
+                        module_id, rictus_module_result_string(module_result));
+                return 1;
+            }
+        } else if (!live && !enabled) {
             printf("[INFO] Module already disabled by human Core policy: %s\n",
                    module_id);
             return 0;
         }
+
         enabled = 0;
     } else {
         fprintf(stderr, "[ERROR] Unknown module control action: %s\n", action);
         return 2;
     }
 
-    state_result = rictus_module_state_set_enabled(
-        &state, module_id, enabled);
+    state_result = rictus_module_state_set_enabled(state, module_id, enabled);
     if (state_result != RICTUS_MODULE_STATE_OK) {
         fprintf(stderr, "[ERROR] Module authorization state: %s\n",
                 rictus_module_state_result_string(state_result));
         return 1;
     }
 
-    state_result = rictus_module_state_save(
-        &state, RICTUS_MODULE_STATE_PATH);
+    state_result = rictus_module_state_save(state, RICTUS_MODULE_STATE_PATH);
     if (state_result != RICTUS_MODULE_STATE_OK) {
         fprintf(stderr, "[ERROR] Module state save: %s\n",
                 rictus_module_state_result_string(state_result));
         return 1;
     }
 
-    printf("[INFO] Human Core policy: %s %s.\n",
-           module_id, enabled ? "ENABLED" : "DISABLED");
+    printf("[INFO] Human Core policy: %s %s%s.\n",
+           module_id,
+           enabled ? "ENABLED" : "DISABLED",
+           live ? (enabled ? " and ACTIVE" : " and STOPPED") : "");
     return 0;
 }
+
