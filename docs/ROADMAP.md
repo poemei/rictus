@@ -93,3 +93,5 @@ IRC module migration remains pending until the Core lifecycle is proven. Intelli
 - Core now derives module artifact identity from SHA-256 of the exact shared-object bytes. Next runtime evidence must show: current artifact performs one fresh qualification because the old temporary identity cannot match; immediate restart restores qualification; rebuilding/changing `irc.so` produces a different identity and forces fresh qualification.
 
 - Linux module discovery is now executable Core behavior. Startup scans the modules directory and produces bounded candidates without granting lifecycle authority. IRC is selected from discovery and then follows the existing load/verify/qualify-or-restore/human-enable path. Next prove this discovery-driven startup at runtime before adding change polling/hot deployment.
+
+- Linux hot-deployment observation is now source-integrated using `inotify`. Core establishes the startup candidate snapshot, starts the watcher, and can report new or changed module artifacts while IRC remains online. Next prove runtime detection, then connect detected changes to the lifecycle without granting automatic enable authority.
