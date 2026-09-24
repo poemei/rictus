@@ -1,4 +1,5 @@
 # Rictus Changelog
+- Added native Linux `make install` deployment with systemd service support, installed configuration under `/etc/rictus`, persistent Core state under `/var/lib/rictus`, and modules under `/usr/local/lib/rictus/modules`.
 - Linux hot deployment now safely stops, unloads, reloads, requalifies, and disables changed non-IRC module artifacts pending human authority.
 
 ## Unreleased
