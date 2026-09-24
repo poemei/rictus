@@ -15,6 +15,7 @@ IRC_MODULE := $(BUILD_DIR)/modules/irc.so
 .PHONY: all clean
 
 all: $(TARGET) $(IRC_MODULE)
+	@mkdir -p state
 
 $(IRC_MODULE): modules/irc/src/irc_module.c
 	@mkdir -p $(BUILD_DIR)/modules
