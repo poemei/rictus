@@ -1,13 +1,15 @@
 #include <stdio.h>
+#include <string.h>
 
 #include "rictus.h"
 #include "rictus_artifact.h"
+#include "rictus_module_discovery.h"
 #include "rictus_module_lifecycle.h"
 #include "rictus_module_loader.h"
 #include "rictus_module_registry.h"
 #include "rictus_module_state.h"
 
-#define RICTUS_IRC_MODULE_PATH "build/linux/modules/irc.so"
+#define RICTUS_MODULES_PATH "build/linux/modules"
 
 int rictus_run(void)
 {
@@ -16,13 +18,16 @@ int rictus_run(void)
     rictus_module_store_t state;
     const rictus_module_descriptor_t *descriptor = NULL;
     const rictus_module_record_t *record;
+    rictus_module_candidate_t candidates[RICTUS_MODULE_LOADER_MAX];
+    rictus_module_discovery_report_t discovery_report;
+    const rictus_module_candidate_t *irc_candidate = NULL;
+    size_t candidate_count = 0U;
+    size_t candidate_index;
     rictus_module_loader_result_t load_result;
-    rictus_artifact_result_t artifact_result;
     rictus_module_state_result_t state_result;
     rictus_module_result_t module_result;
     rictus_module_prepare_action_t prepare_action;
     rictus_module_host_t host = {0};
-    char artifact_id[RICTUS_MODULE_ARTIFACT_ID_MAX];
     int state_existed;
 
     puts("STN-LABZ Rictus");
@@ -42,21 +47,41 @@ int rictus_run(void)
         return 1;
     }
 
-    artifact_result = rictus_artifact_sha256(
-        RICTUS_IRC_MODULE_PATH,
-        artifact_id,
-        sizeof(artifact_id));
+    module_result = rictus_module_discovery_scan(
+        RICTUS_MODULES_PATH,
+        candidates,
+        RICTUS_MODULE_LOADER_MAX,
+        &candidate_count,
+        &discovery_report);
 
-    if (artifact_result != RICTUS_ARTIFACT_OK) {
-        fprintf(stderr, "[ERROR] IRC artifact identity: %s\n",
-                rictus_artifact_result_string(artifact_result));
+    if (module_result != RICTUS_MODULE_OK) {
+        fprintf(stderr, "[ERROR] Module discovery: %s\n",
+                rictus_module_result_string(module_result));
+        return 1;
+    }
+
+    printf("[INFO] Module discovery: %zu candidate(s), %zu rejected.\n",
+           discovery_report.candidates_found,
+           discovery_report.candidates_rejected);
+
+    for (candidate_index = 0U;
+         candidate_index < candidate_count;
+         ++candidate_index) {
+        if (strcmp(candidates[candidate_index].module_id, "irc") == 0) {
+            irc_candidate = &candidates[candidate_index];
+            break;
+        }
+    }
+
+    if (irc_candidate == NULL) {
+        fputs("[ERROR] IRC module not discovered.\n", stderr);
         return 1;
     }
 
     load_result = rictus_module_loader_load(
         &loader,
-        "irc",
-        RICTUS_IRC_MODULE_PATH,
+        irc_candidate->module_id,
+        irc_candidate->artifact_path,
         &descriptor);
 
     if (load_result != RICTUS_MODULE_LOADER_OK) {
@@ -71,13 +96,13 @@ int rictus_run(void)
            descriptor->version_minor,
            descriptor->version_patch,
            12,
-           artifact_id);
+           irc_candidate->artifact_id);
 
     module_result = rictus_module_lifecycle_prepare(
         &registry,
         &state.inventory,
         descriptor,
-        artifact_id,
+        irc_candidate->artifact_id,
         &prepare_action);
 
     if (module_result != RICTUS_MODULE_OK) {
