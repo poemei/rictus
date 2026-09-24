@@ -9,9 +9,15 @@ ABI_DIR := ../ABI
 ABI_OBJECTS := $(BUILD_DIR)/abi_module.o $(BUILD_DIR)/abi_module_registry.o
 LDLIBS := -lssl -lcrypto
 
+IRC_MODULE := $(BUILD_DIR)/modules/irc.so
+
 .PHONY: all clean
 
-all: $(TARGET)
+all: $(TARGET) $(IRC_MODULE)
+
+$(IRC_MODULE): modules/irc/src/irc_module.c
+	@mkdir -p $(BUILD_DIR)/modules
+	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -Imodules/irc/include -shared $< -o $@
 
 $(TARGET): $(OBJECTS) $(ABI_OBJECTS)
 	$(CC) $(OBJECTS) $(ABI_OBJECTS) $(LDLIBS) -o $@
