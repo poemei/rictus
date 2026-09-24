@@ -120,14 +120,81 @@ static void observe_scan(rictus_module_watch_t *watch)
             prepare_deployment(watch, &current[index]);
         } else if (strcmp(previous->artifact_id,
                           current[index].artifact_id) != 0) {
+            const rictus_loaded_module_t *loaded;
+            const rictus_module_record_t *record;
+            rictus_module_result_t stop_result;
+
             printf("[INFO] Module artifact changed: %s artifact=%.*s...\n",
                    current[index].module_id, 12, current[index].artifact_id);
+
             /*
-             * A changed loaded artifact cannot be safely replaced while code
-             * from the old image may be executing. Detection invalidates any
-             * assumption of unchanged qualification; live replacement remains
-             * a separate lifecycle boundary.
+             * IRC owns the transport carrying operator control and is not
+             * replaced from its own watcher thread.
              */
+            if (strcmp(current[index].module_id, "irc") == 0) {
+                puts("[INFO] IRC artifact change deferred until Core restart.");
+                continue;
+            }
+
+            loaded = rictus_module_loader_find(
+                watch->loader, current[index].module_id);
+            record = rictus_module_registry_find(
+                watch->registry, current[index].module_id);
+
+            if (loaded != NULL && record != NULL &&
+                record->state == RICTUS_MODULE_STATE_ACTIVE) {
+                if (loaded->descriptor->stop == NULL) {
+                    fprintf(stderr,
+                            "[ERROR] Module replacement stop unavailable: %s\n",
+                            current[index].module_id);
+                    continue;
+                }
+
+                stop_result = loaded->descriptor->stop();
+                if (stop_result != RICTUS_MODULE_OK) {
+                    fprintf(stderr,
+                            "[ERROR] Module replacement stop: %s result=%s\n",
+                            current[index].module_id,
+                            rictus_module_result_string(stop_result));
+                    continue;
+                }
+
+                stop_result = rictus_module_registry_stop(
+                    watch->registry, current[index].module_id);
+                if (stop_result != RICTUS_MODULE_OK) {
+                    fprintf(stderr,
+                            "[ERROR] Module replacement registry stop: %s result=%s\n",
+                            current[index].module_id,
+                            rictus_module_result_string(stop_result));
+                    continue;
+                }
+
+                printf("[INFO] Module stopped for artifact replacement: %s\n",
+                       current[index].module_id);
+            }
+
+            if (loaded != NULL) {
+                rictus_module_loader_result_t unload_result =
+                    rictus_module_loader_unload(
+                        watch->loader, current[index].module_id);
+                if (unload_result != RICTUS_MODULE_LOADER_OK) {
+                    fprintf(stderr,
+                            "[ERROR] Module replacement unload: %s result=%s\n",
+                            current[index].module_id,
+                            rictus_module_loader_result_string(unload_result));
+                    continue;
+                }
+                printf("[INFO] Previous module artifact unloaded: %s\n",
+                       current[index].module_id);
+            }
+
+            /*
+             * prepare_deployment() loads the new image, verifies ABI,
+             * performs qualification for the changed artifact, records its
+             * evidence, and persists DISABLED. Replacement never restores
+             * prior operational authority.
+             */
+            prepare_deployment(watch, &current[index]);
         }
     }
 
