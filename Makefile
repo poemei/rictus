@@ -4,6 +4,12 @@ CPPFLAGS := -D_POSIX_C_SOURCE=200112L -Iinclude
 CFLAGS := -std=c17 -Wall -Wextra -Wpedantic
 BUILD_DIR := build/linux
 TARGET := $(BUILD_DIR)/rictus
+PREFIX ?= /usr/local
+SYSCONFDIR ?= /etc/rictus
+LOCALSTATEDIR ?= /var/lib/rictus
+MODULEDIR ?= $(PREFIX)/lib/rictus/modules
+SYSTEMD_DIR ?= /etc/systemd/system
+DESTDIR ?=
 OBJECTS := $(BUILD_DIR)/main.o $(BUILD_DIR)/rictus.o $(BUILD_DIR)/irc.o $(BUILD_DIR)/tls_openssl.o $(BUILD_DIR)/rictus_net_linux.o $(BUILD_DIR)/artifact.o $(BUILD_DIR)/config.o $(BUILD_DIR)/irc_message.o $(BUILD_DIR)/event.o $(BUILD_DIR)/dispatch.o $(BUILD_DIR)/command.o $(BUILD_DIR)/module_inventory.o $(BUILD_DIR)/module_state.o $(BUILD_DIR)/module_lifecycle.o $(BUILD_DIR)/module_loader_linux.o $(BUILD_DIR)/module_discovery_linux.o $(BUILD_DIR)/module_watch_linux.o
 ABI_DIR := ../ABI
 ABI_OBJECTS := $(BUILD_DIR)/abi_module.o $(BUILD_DIR)/abi_module_registry.o
@@ -12,7 +18,7 @@ CORE_LDLIBS := -rdynamic -ldl -lssl -lcrypto -pthread
 
 IRC_MODULE := $(BUILD_DIR)/modules/irc.so
 
-.PHONY: all clean
+.PHONY: all clean install
 
 all: $(TARGET) $(IRC_MODULE)
 	@mkdir -p state
@@ -102,3 +108,11 @@ $(BUILD_DIR)/rictus_net_linux.o: platforms/linux/rictus_net_linux.c
 
 clean:
 	rm -rf $(BUILD_DIR)
+
+install: all
+	install -d "$(DESTDIR)$(PREFIX)/bin" "$(DESTDIR)$(SYSCONFDIR)" "$(DESTDIR)$(LOCALSTATEDIR)" "$(DESTDIR)$(MODULEDIR)" "$(DESTDIR)$(SYSTEMD_DIR)"
+	install -m 0755 "$(TARGET)" "$(DESTDIR)$(PREFIX)/bin/rictus"
+	install -m 0644 "$(IRC_MODULE)" "$(DESTDIR)$(MODULEDIR)/irc.so"
+	@if [ -f rictus.json ]; then install -m 0600 rictus.json "$(DESTDIR)$(SYSCONFDIR)/rictus.json"; fi
+	install -m 0644 packaging/rictus.service "$(DESTDIR)$(SYSTEMD_DIR)/rictus.service"
+	@echo "Rictus installed. Run: systemctl daemon-reload && systemctl enable --now rictus"
