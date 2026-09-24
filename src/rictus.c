@@ -181,7 +181,10 @@ int rictus_run(void)
             &watch,
             RICTUS_MODULES_PATH,
             candidates,
-            candidate_count)) {
+            candidate_count,
+            &loader,
+            &registry,
+            &state)) {
         fputs("[ERROR] Module hot-deployment watch failed.\n", stderr);
         rictus_module_loader_unload_all(&loader);
         return 1;
