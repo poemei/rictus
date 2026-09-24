@@ -97,3 +97,5 @@ IRC module migration remains pending until the Core lifecycle is proven. Intelli
 - Linux hot-deployment observation is now source-integrated using `inotify`. Core establishes the startup candidate snapshot, starts the watcher, and can report new or changed module artifacts while IRC remains online. Next prove runtime detection, then connect detected changes to the lifecycle without granting automatic enable authority.
 
 - [x] Live replacement of changed non-IRC Linux module artifacts: stop, unload, reload, requalify, persist disabled.
+
+- [x] Native Linux installation and systemd daemon deployment (`make install`).
