@@ -1,19 +1,13 @@
 #include <stdio.h>
 
 #include "rictus.h"
+#include "rictus_artifact.h"
 #include "rictus_module_lifecycle.h"
 #include "rictus_module_loader.h"
 #include "rictus_module_registry.h"
 #include "rictus_module_state.h"
 
 #define RICTUS_IRC_MODULE_PATH "build/linux/modules/irc.so"
-
-/*
- * Artifact hashing is the next boundary. This identity remains explicit and
- * temporary; persisted qualification is therefore valid only for this declared
- * identity and must not be mistaken for content-derived artifact proof.
- */
-#define RICTUS_IRC_ARTIFACT_ID "runtime:irc:1.0.0"
 
 int rictus_run(void)
 {
@@ -23,10 +17,12 @@ int rictus_run(void)
     const rictus_module_descriptor_t *descriptor = NULL;
     const rictus_module_record_t *record;
     rictus_module_loader_result_t load_result;
+    rictus_artifact_result_t artifact_result;
     rictus_module_state_result_t state_result;
     rictus_module_result_t module_result;
     rictus_module_prepare_action_t prepare_action;
     rictus_module_host_t host = {0};
+    char artifact_id[RICTUS_MODULE_ARTIFACT_ID_MAX];
     int state_existed;
 
     puts("STN-LABZ Rictus");
@@ -46,6 +42,17 @@ int rictus_run(void)
         return 1;
     }
 
+    artifact_result = rictus_artifact_sha256(
+        RICTUS_IRC_MODULE_PATH,
+        artifact_id,
+        sizeof(artifact_id));
+
+    if (artifact_result != RICTUS_ARTIFACT_OK) {
+        fprintf(stderr, "[ERROR] IRC artifact identity: %s\n",
+                rictus_artifact_result_string(artifact_result));
+        return 1;
+    }
+
     load_result = rictus_module_loader_load(
         &loader,
         "irc",
@@ -58,17 +65,19 @@ int rictus_run(void)
         return 1;
     }
 
-    printf("[INFO] Module loaded: %s %u.%u.%u\n",
+    printf("[INFO] Module loaded: %s %u.%u.%u artifact=%.*s...\n",
            descriptor->name,
            descriptor->version_major,
            descriptor->version_minor,
-           descriptor->version_patch);
+           descriptor->version_patch,
+           12,
+           artifact_id);
 
     module_result = rictus_module_lifecycle_prepare(
         &registry,
         &state.inventory,
         descriptor,
-        RICTUS_IRC_ARTIFACT_ID,
+        artifact_id,
         &prepare_action);
 
     if (module_result != RICTUS_MODULE_OK) {
