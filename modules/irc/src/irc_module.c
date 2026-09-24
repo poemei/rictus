@@ -1,15 +1,18 @@
 /*
  * STN-LABZ Rictus IRC Module
  *
- * Initial ABI-facing module boundary.
- *
- * The existing proven IRC transport/session remains untouched while this
- * module becomes the first real consumer used to prove Core module mechanics.
+ * IRC owns the IRC transport/session capability. Core owns module
+ * qualification and activation authority.
  */
 
+#include <stdio.h>
 #include <string.h>
 
+#include "rictus_config.h"
+#include "rictus_irc.h"
 #include "rictus_irc_module.h"
+#include "rictus_net.h"
+#include "rictus_tls.h"
 
 #define RICTUS_IRC_MODULE_ID "irc"
 #define RICTUS_IRC_MODULE_NAME "Rictus IRC"
@@ -69,14 +72,65 @@ static rictus_module_result_t rictus_irc_module_qualify(
 static rictus_module_result_t rictus_irc_module_start(
     const rictus_module_host_t *host)
 {
+    rictus_config config;
+    rictus_net_connection connection;
+    rictus_tls_connection tls;
+    char error[256];
+
     if (host == NULL) {
         return RICTUS_MODULE_ERR_INVALID_ARGUMENT;
     }
 
-    /*
-     * Runtime ownership moves here only after Core loading/enablement is
-     * proven. Until then the existing IRC runtime remains the evidence path.
-     */
+    if (!rictus_config_load(RICTUS_CONFIG_DEFAULT_PATH, &config, error, sizeof(error))) {
+        fprintf(stderr, "[ERROR] IRC configuration: %s\n", error);
+        return RICTUS_MODULE_ERR_START_FAILED;
+    }
+
+    printf("[INFO] IRC configuration loaded: server=%s port=%u tls=%s user=%s channel=%s\n",
+           config.irc.server,
+           (unsigned int)config.irc.port,
+           config.irc.tls ? "true" : "false",
+           config.irc.username,
+           config.irc.channel);
+
+    printf("[INFO] Connecting to %s:%u\n",
+           config.irc.server,
+           (unsigned int)config.irc.port);
+
+    if (!rictus_net_connect(&connection,
+                            config.irc.server,
+                            config.irc.port,
+                            error,
+                            sizeof(error))) {
+        fprintf(stderr, "[ERROR] IRC transport: %s\n", error);
+        return RICTUS_MODULE_ERR_START_FAILED;
+    }
+
+    puts("[INFO] IRC transport connected.");
+
+    if (!config.irc.tls) {
+        fputs("[ERROR] IRC TLS is required for this Rictus connection.\n", stderr);
+        rictus_net_close(&connection);
+        return RICTUS_MODULE_ERR_START_FAILED;
+    }
+
+    if (!rictus_tls_connect(&tls, &connection, config.irc.server, error, sizeof(error))) {
+        fprintf(stderr, "[ERROR] IRC TLS: %s\n", error);
+        rictus_net_close(&connection);
+        return RICTUS_MODULE_ERR_START_FAILED;
+    }
+
+    puts("[INFO] IRC TLS established and certificate verified.");
+
+    if (!rictus_irc_run(&tls, &config.irc, error, sizeof(error))) {
+        fprintf(stderr, "[ERROR] IRC session: %s\n", error);
+        rictus_tls_close(&tls);
+        rictus_net_close(&connection);
+        return RICTUS_MODULE_ERR_START_FAILED;
+    }
+
+    rictus_tls_close(&tls);
+    rictus_net_close(&connection);
     return RICTUS_MODULE_OK;
 }
 
