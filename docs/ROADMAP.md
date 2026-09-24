@@ -24,7 +24,7 @@
 - Linux TLS uses OpenSSL and is runtime validated against Libera.Chat with certificate/hostname verification.
 - Windows TLS uses native Schannel and the Windows system certificate infrastructure.
 - Windows build no longer requires OpenSSL headers, libraries, or `OPENSSL_ROOT_DIR`.
-- Core modernization has begun by restoring the shared STN-LABZ ABI module and registry bridge from the prior Rictus implementation.
+- Core modernization has begun by restoring the shared STN-LABZ ABI module and registry bridge from the prior Rictus implementation.\n- Core-owned qualification inventory has been modernized around exact artifact identity, preventing changed binaries from inheriting qualification solely from an unchanged semantic version.\n- Module lifecycle acceptance criteria are established directly under `tests/`; executable evidence remains pending.
 - The restored ABI bridge expects the established sibling `../ABI/includes/` layout and is not yet wired into the default executable build.
 
 ### Validation
@@ -80,7 +80,7 @@
 
 ### Next increment
 
-Continue Core modernization from the prior implementation: module lifecycle, qualification evidence, explicit human enablement, discovery/change recognition, and native Windows/Linux loading boundaries. Prove each feature under `tests/` before treating it as live.
+Continue Core modernization from the prior implementation. Next establish the Core lifecycle policy above the shared ABI: qualification may produce a qualified artifact, but only explicit human authorization may make it operational. Then proceed to discovery/change recognition and native Windows/Linux loading boundaries. Prove each feature under `tests/` before treating it as live.
 
 ### Deferred
 
