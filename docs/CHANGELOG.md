@@ -66,3 +66,5 @@
 - Core lifecycle preparation now reports whether qualification was freshly executed or restored from persisted evidence. Runtime logging no longer makes those two paths observationally ambiguous.
 
 - Replaced the temporary IRC artifact identity with a Core-computed SHA-256 over the exact `irc.so` bytes. Persisted qualification is now keyed to the actual module artifact, so a changed binary cannot restore qualification solely by retaining the same module ID/version.
+
+- Implemented native Linux module-directory discovery. Core now scans `build/linux/modules`, accepts bounded `.so` candidates, derives each candidate ID from its filename, computes its exact SHA-256 artifact identity, and selects IRC from discovered candidates rather than a hardcoded artifact path.
