@@ -23,7 +23,7 @@ IRC_MODULE := $(BUILD_DIR)/modules/irc.so
 all: $(TARGET) $(IRC_MODULE)
 	@mkdir -p state
 
-$(IRC_MODULE): modules/irc/src/irc_module.c
+$(IRC_MODULE): modules/irc/src/irc_module.c include/rictus_config.h include/rictus_irc.h include/rictus_module.h include/rictus_net.h include/rictus_tls.h
 	@mkdir -p $(BUILD_DIR)/modules
 	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -Imodules/irc/include -shared modules/irc/src/irc_module.c src/config.c src/tls_openssl.c platforms/linux/rictus_net_linux.c $(LDLIBS) -o $@
 
