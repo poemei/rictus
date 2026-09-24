@@ -4,10 +4,8 @@
 
 ### Established direction
 
-- Cross-platform ISO C with Windows and Linux as first-class targets.
-- Common behavior remains platform-independent.
-- Native operating-system behavior remains behind explicit platform boundaries.
-- Windows builds through `build.cmd`; Linux builds through `Makefile`.
+- ISO C targeting Linux on the retained VPS.
+- Linux builds through `Makefile`.
 - Runtime configuration uses `rictus.json`.
 - TLS is exposed through one common contract with native platform implementations.
 - Core is completed and feature-tested before operational capabilities are moved into modules.
@@ -18,33 +16,27 @@
 
 ### Current staging
 
-- Bootstrap and JSON configuration are runtime validated on Windows and Linux.
-- Native Winsock and POSIX networking boundary is implemented.
-- TCP connectivity to Libera.Chat port 6697 is runtime validated on Windows and Linux.
+- Bootstrap and JSON configuration are runtime validated on Linux.
+- Native POSIX networking is implemented.
+- TCP connectivity to Libera.Chat port 6697 is runtime validated on Linux.
 - Linux TLS uses OpenSSL and is runtime validated against Libera.Chat with certificate/hostname verification.
-- Windows TLS uses native Schannel and the Windows system certificate infrastructure.
-- Windows build no longer requires OpenSSL headers, libraries, or `OPENSSL_ROOT_DIR`.
-- Core modernization has begun by restoring the shared STN-LABZ ABI module and registry bridge from the prior Rictus implementation.\n- Core-owned qualification inventory has been modernized around exact artifact identity, preventing changed binaries from inheriting qualification solely from an unchanged semantic version.\n- Module lifecycle acceptance criteria are established directly under `tests/`; executable evidence remains pending.\n- Rictus-owned lifecycle policy now separates preparation/qualification from human-authorized enablement above the shared ABI registry.\n- Linux `make all` and Windows `build.cmd` now compile the established Core qualification inventory and lifecycle sources and the required sibling ABI module/registry implementation; local platform link evidence remains pending.\n- Shared ABI loader mechanics are bridged into Rictus and the common discovery boundary now emits candidates without granting lifecycle state or authority.\n- IRC is now the first ABI-facing module artifact on both Linux and Windows. Its start boundary now contains the proven IRC runtime capability on both Linux and Windows. Core startup now reaches IRC only through the module artifact and ABI descriptor; native Windows/Linux loaders are established.
-- The restored ABI bridge expects the established sibling `../ABI/includes/` layout and is not yet wired into the default executable build.
+- Core modernization has begun by restoring the shared STN-LABZ ABI module and registry bridge from the prior Rictus implementation.\n- Core-owned qualification inventory has been modernized around exact artifact identity, preventing changed binaries from inheriting qualification solely from an unchanged semantic version.\n- Module lifecycle acceptance criteria are established directly under `tests/`; executable evidence remains pending.\n- Rictus-owned lifecycle policy now separates preparation/qualification from human-authorized enablement above the shared ABI registry.\n- Linux `make all` compiles the established Core qualification inventory and lifecycle sources and the required sibling ABI module/registry implementation.\n- The restored ABI bridge expects the established sibling `../ABI/includes/` layout and is not yet wired into the default executable build.
 
 ### Validation
 
 - Linux TCP: validated.
-- Windows TCP: validated.
 - Linux OpenSSL TLS: validated.
-- Windows Schannel build: validated.
-- Windows Schannel TLS handshake and certificate verification against Libera.Chat: validated.
 - The corrected Schannel context/client-certificate handling is runtime validated.
 - New Core module work remains pre-live until its feature tests and platform builds provide evidence.
 
 ### Current IRC increment
 
-- Common TLS stream I/O is implemented for Linux OpenSSL and Windows Schannel.
+- TLS stream I/O is implemented with Linux OpenSSL.
 - IRCv3 capability negotiation requests SASL before registration completes.
 - SASL PLAIN credentials are Base64 encoded in memory and never logged.
 - Successful SASL completes capability negotiation, waits for welcome, and joins the configured channel.
 - The persistent session answers server PING with PONG.
-- Authenticated registration and join of `#stn-labz` are runtime validated on Windows and Linux.
+- Authenticated registration and join of `#stn-labz` are runtime validated on Linux.
 - This proven IRC implementation is scheduled to move out of executable Core behavior and become the first Core qualification/activation module.
 
 ### Current event increment
@@ -52,14 +44,14 @@
 - Added a bounded, platform-independent IRC message parser.
 - IRC wire input is mapped into common Rictus events rather than intelligence behavior consuming protocol text directly.
 - Initial event types are channel message, private message, join, part, and quit.
-- Identical JOIN event observation is runtime validated on Windows and Linux.
+- JOIN event observation is runtime validated on Linux.
 
 ### Current dispatch increment
 
 - Added a bounded dispatch layer above common Rictus events.
 - Channel and private messages are deterministically classified as commands when their first non-space character is `!`; other messages become observations.
 - IRC protocol parsing remains isolated below the event boundary.
-- Private-message command dispatch is runtime validated on Windows and Linux.
+- Private-message command dispatch is runtime validated on Linux.
 
 ### Current command increment
 
@@ -68,7 +60,7 @@
 - `!help` reports the bounded command surface currently implemented.
 - Unknown commands receive a deterministic unknown-command response.
 - Channel commands reply to the channel; private commands reply to the sender.
-- `!help` and `!status` private-message replies are runtime validated on Windows and Linux; mixed-case `!staTUS` is also validated on Linux.
+- `!help`, `!status`, and mixed-case `!staTUS` private-message replies are runtime validated on Linux.
 
 ### Intelligence policy increment
 
@@ -93,3 +85,5 @@ IRC module migration remains pending until the Core lifecycle is proven. Intelli
 - IRC now exercises the established Core lifecycle path: load -> discover -> verify -> qualify/restore -> human authority -> activate -> module start. Next: replace temporary artifact identity and process-start human authorization with Core-owned persistent artifact qualification and enable/disable state.
 
 - Core module state persistence is now implemented for qualification evidence and human enable/disable policy. Next prove first-run state creation and second-run qualification restoration on Linux, then replace the temporary declared artifact identity with deterministic content-derived artifact identity so changed `.so` artifacts force requalification.
+
+- Windows support has been removed. Rictus is now developed and deployed as a Linux system on the retained VPS; Windows build parity is no longer a project requirement.
