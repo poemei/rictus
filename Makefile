@@ -4,10 +4,11 @@ CPPFLAGS := -D_POSIX_C_SOURCE=200112L -Iinclude
 CFLAGS := -std=c17 -Wall -Wextra -Wpedantic
 BUILD_DIR := build/linux
 TARGET := $(BUILD_DIR)/rictus
-OBJECTS := $(BUILD_DIR)/main.o $(BUILD_DIR)/rictus.o $(BUILD_DIR)/config.o $(BUILD_DIR)/irc_message.o $(BUILD_DIR)/event.o $(BUILD_DIR)/dispatch.o $(BUILD_DIR)/command.o $(BUILD_DIR)/module_inventory.o $(BUILD_DIR)/module_lifecycle.o $(BUILD_DIR)/irc.o $(BUILD_DIR)/tls_openssl.o $(BUILD_DIR)/rictus_net_linux.o
+OBJECTS := $(BUILD_DIR)/main.o $(BUILD_DIR)/rictus.o $(BUILD_DIR)/config.o $(BUILD_DIR)/irc_message.o $(BUILD_DIR)/event.o $(BUILD_DIR)/dispatch.o $(BUILD_DIR)/command.o $(BUILD_DIR)/module_inventory.o $(BUILD_DIR)/module_lifecycle.o $(BUILD_DIR)/module_loader_linux.o $(BUILD_DIR)/tls_openssl.o $(BUILD_DIR)/rictus_net_linux.o
 ABI_DIR := ../ABI
 ABI_OBJECTS := $(BUILD_DIR)/abi_module.o $(BUILD_DIR)/abi_module_registry.o
 LDLIBS := -lssl -lcrypto
+CORE_LDLIBS := -ldl
 
 IRC_MODULE := $(BUILD_DIR)/modules/irc.so
 
@@ -20,7 +21,7 @@ $(IRC_MODULE): modules/irc/src/irc_module.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -Imodules/irc/include -shared modules/irc/src/irc_module.c src/config.c src/irc.c src/irc_message.c src/event.c src/dispatch.c src/command.c src/tls_openssl.c platforms/linux/rictus_net_linux.c $(LDLIBS) -o $@
 
 $(TARGET): $(OBJECTS) $(ABI_OBJECTS)
-	$(CC) $(OBJECTS) $(ABI_OBJECTS) $(LDLIBS) -o $@
+	$(CC) $(OBJECTS) $(ABI_OBJECTS) $(CORE_LDLIBS) -o $@
 
 $(BUILD_DIR)/abi_module.o: $(ABI_DIR)/src/module.c
 	@mkdir -p $(BUILD_DIR)
@@ -63,6 +64,10 @@ $(BUILD_DIR)/module_inventory.o: src/module_inventory.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/module_lifecycle.o: src/module_lifecycle.c
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/module_loader_linux.o: platforms/linux/rictus_module_loader_linux.c
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
