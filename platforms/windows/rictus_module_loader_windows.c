@@ -32,8 +32,8 @@
  * ------------------------------------------------
  */
 
-static int stnlabz_module_loader_descriptor_valid(
-    const stnlabz_module_descriptor_t *descriptor
+static int rictus_module_loader_descriptor_valid(
+    const rictus_module_descriptor_t *descriptor
 )
 {
     size_t id_length;
@@ -102,8 +102,8 @@ static int stnlabz_module_loader_descriptor_valid(
  * ------------------------------------------------
  */
 
-void stnlabz_module_loader_init(
-    stnlabz_module_loader_t *loader
+void rictus_module_loader_init(
+    rictus_module_loader_t *loader
 )
 {
     if (
@@ -129,8 +129,8 @@ void stnlabz_module_loader_init(
  */
 
 const rictus_loaded_module_t *
-stnlabz_module_loader_find(
-    const stnlabz_module_loader_t *loader,
+rictus_module_loader_find(
+    const rictus_module_loader_t *loader,
     const char *module_id
 )
 {
@@ -177,22 +177,22 @@ stnlabz_module_loader_find(
  * ------------------------------------------------
  */
 
-stnlabz_module_loader_result_t
-stnlabz_module_loader_load(
-    stnlabz_module_loader_t *loader,
+rictus_module_loader_result_t
+rictus_module_loader_load(
+    rictus_module_loader_t *loader,
     const char *expected_module_id,
     const char *dll_path,
-    const stnlabz_module_descriptor_t **descriptor_out
+    const rictus_module_descriptor_t **descriptor_out
 )
 {
     HMODULE handle;
 
     FARPROC export_address;
 
-    stnlabz_module_get_descriptor_fn
+    rictus_module_get_descriptor_fn
         get_descriptor;
 
-    const stnlabz_module_descriptor_t
+    const rictus_module_descriptor_t
         *descriptor;
 
     rictus_loaded_module_t
@@ -213,7 +213,7 @@ stnlabz_module_loader_load(
     )
     {
         return
-            STNLABZ_MODULE_LOADER_ERR_INVALID_ARGUMENT;
+            RICTUS_MODULE_LOADER_ERR_INVALID_ARGUMENT;
     }
 
 
@@ -222,24 +222,24 @@ stnlabz_module_loader_load(
 
 
     if (
-        stnlabz_module_loader_find(
+        rictus_module_loader_find(
             loader,
             expected_module_id
         ) != NULL
     )
     {
         return
-            STNLABZ_MODULE_LOADER_ERR_ALREADY_LOADED;
+            RICTUS_MODULE_LOADER_ERR_ALREADY_LOADED;
     }
 
 
     if (
         loader->count >=
-        STNLABZ_MODULE_LOADER_MAX
+        RICTUS_MODULE_LOADER_MAX
     )
     {
         return
-            STNLABZ_MODULE_LOADER_ERR_FULL;
+            RICTUS_MODULE_LOADER_ERR_FULL;
     }
 
 
@@ -258,14 +258,14 @@ stnlabz_module_loader_load(
     if (
         id_length == 0 ||
         id_length >=
-            STNLABZ_MODULE_ID_MAX ||
+            RICTUS_MODULE_ID_MAX ||
         path_length == 0 ||
         path_length >=
-            STNLABZ_MODULE_LOADER_PATH_MAX
+            RICTUS_MODULE_LOADER_PATH_MAX
     )
     {
         return
-            STNLABZ_MODULE_LOADER_ERR_INVALID_ARGUMENT;
+            RICTUS_MODULE_LOADER_ERR_INVALID_ARGUMENT;
     }
 
 
@@ -298,7 +298,7 @@ stnlabz_module_loader_load(
     )
     {
         return
-            STNLABZ_MODULE_LOADER_ERR_LOAD_FAILED;
+            RICTUS_MODULE_LOADER_ERR_LOAD_FAILED;
     }
 
 
@@ -311,7 +311,7 @@ stnlabz_module_loader_load(
     export_address =
         GetProcAddress(
             handle,
-            STNLABZ_MODULE_DESCRIPTOR_EXPORT
+            RICTUS_MODULE_DESCRIPTOR_EXPORT
         );
 
 
@@ -325,12 +325,12 @@ stnlabz_module_loader_load(
 
 
         return
-            STNLABZ_MODULE_LOADER_ERR_EXPORT_MISSING;
+            RICTUS_MODULE_LOADER_ERR_EXPORT_MISSING;
     }
 
 
     get_descriptor =
-        (stnlabz_module_get_descriptor_fn)
+        (rictus_module_get_descriptor_fn)
         export_address;
 
 
@@ -345,7 +345,7 @@ stnlabz_module_loader_load(
 
 
     if (
-        !stnlabz_module_loader_descriptor_valid(
+        !rictus_module_loader_descriptor_valid(
             descriptor
         )
     )
@@ -356,7 +356,7 @@ stnlabz_module_loader_load(
 
 
         return
-            STNLABZ_MODULE_LOADER_ERR_DESCRIPTOR_INVALID;
+            RICTUS_MODULE_LOADER_ERR_DESCRIPTOR_INVALID;
     }
 
 
@@ -378,7 +378,7 @@ stnlabz_module_loader_load(
 
 
         return
-            STNLABZ_MODULE_LOADER_ERR_ID_MISMATCH;
+            RICTUS_MODULE_LOADER_ERR_ID_MISMATCH;
     }
 
 
@@ -416,7 +416,7 @@ stnlabz_module_loader_load(
 
 
     memcpy(
-        loaded->dll_path,
+        loaded->artifact_path,
         dll_path,
         path_length + 1
     );
@@ -434,7 +434,7 @@ stnlabz_module_loader_load(
 
 
     return
-        STNLABZ_MODULE_LOADER_OK;
+        RICTUS_MODULE_LOADER_OK;
 }
 
 
@@ -444,9 +444,9 @@ stnlabz_module_loader_load(
  * ------------------------------------------------
  */
 
-stnlabz_module_loader_result_t
-stnlabz_module_loader_unload(
-    stnlabz_module_loader_t *loader,
+rictus_module_loader_result_t
+rictus_module_loader_unload(
+    rictus_module_loader_t *loader,
     const char *module_id
 )
 {
@@ -460,7 +460,7 @@ stnlabz_module_loader_unload(
     )
     {
         return
-            STNLABZ_MODULE_LOADER_ERR_INVALID_ARGUMENT;
+            RICTUS_MODULE_LOADER_ERR_INVALID_ARGUMENT;
     }
 
 
@@ -529,13 +529,13 @@ stnlabz_module_loader_unload(
 
 
             return
-                STNLABZ_MODULE_LOADER_OK;
+                RICTUS_MODULE_LOADER_OK;
         }
     }
 
 
     return
-        STNLABZ_MODULE_LOADER_ERR_NOT_FOUND;
+        RICTUS_MODULE_LOADER_ERR_NOT_FOUND;
 }
 
 
@@ -545,8 +545,8 @@ stnlabz_module_loader_unload(
  * ------------------------------------------------
  */
 
-void stnlabz_module_loader_unload_all(
-    stnlabz_module_loader_t *loader
+void rictus_module_loader_unload_all(
+    rictus_module_loader_t *loader
 )
 {
     if (
@@ -603,55 +603,55 @@ void stnlabz_module_loader_unload_all(
  */
 
 const char *
-stnlabz_module_loader_result_string(
-    stnlabz_module_loader_result_t result
+rictus_module_loader_result_string(
+    rictus_module_loader_result_t result
 )
 {
     switch (
         result
     )
     {
-        case STNLABZ_MODULE_LOADER_OK:
+        case RICTUS_MODULE_LOADER_OK:
 
             return "OK";
 
 
-        case STNLABZ_MODULE_LOADER_ERR_INVALID_ARGUMENT:
+        case RICTUS_MODULE_LOADER_ERR_INVALID_ARGUMENT:
 
             return "INVALID_ARGUMENT";
 
 
-        case STNLABZ_MODULE_LOADER_ERR_FULL:
+        case RICTUS_MODULE_LOADER_ERR_FULL:
 
             return "FULL";
 
 
-        case STNLABZ_MODULE_LOADER_ERR_ALREADY_LOADED:
+        case RICTUS_MODULE_LOADER_ERR_ALREADY_LOADED:
 
             return "ALREADY_LOADED";
 
 
-        case STNLABZ_MODULE_LOADER_ERR_LOAD_FAILED:
+        case RICTUS_MODULE_LOADER_ERR_LOAD_FAILED:
 
             return "LOAD_FAILED";
 
 
-        case STNLABZ_MODULE_LOADER_ERR_EXPORT_MISSING:
+        case RICTUS_MODULE_LOADER_ERR_EXPORT_MISSING:
 
             return "EXPORT_MISSING";
 
 
-        case STNLABZ_MODULE_LOADER_ERR_DESCRIPTOR_INVALID:
+        case RICTUS_MODULE_LOADER_ERR_DESCRIPTOR_INVALID:
 
             return "DESCRIPTOR_INVALID";
 
 
-        case STNLABZ_MODULE_LOADER_ERR_ID_MISMATCH:
+        case RICTUS_MODULE_LOADER_ERR_ID_MISMATCH:
 
             return "ID_MISMATCH";
 
 
-        case STNLABZ_MODULE_LOADER_ERR_NOT_FOUND:
+        case RICTUS_MODULE_LOADER_ERR_NOT_FOUND:
 
             return "NOT_FOUND";
 
