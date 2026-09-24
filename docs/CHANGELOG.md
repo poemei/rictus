@@ -20,7 +20,7 @@
 - Validated identical JOIN event semantics on Windows and Linux from the live Libera.Chat session.
 - Validated private-message command dispatch and live `!help` / `!status` replies on Windows and Linux; command matching is case-insensitive.
 - Added the top-level `tests/` directory for feature acceptance tests before features are treated as live.
-- Restored the Rictus Core bridge to the shared sibling STN-LABZ module ABI and its Core-owned module registry contract from the prior implementation.\n- Restored and modernized the Core-owned qualification inventory contract. Qualification evidence now identifies the exact module artifact in addition to module/version/Core API metadata, so a changed binary cannot inherit prior qualification merely by retaining the same version.\n- Added Core module lifecycle acceptance criteria under `tests/`, including qualification/enablement separation and the prohibition on module self-enablement.\n- Added the Rictus-owned Core lifecycle policy above the shared ABI registry. Core now has an explicit prepare boundary for exact-artifact qualification and a separate human-authority enable boundary.\n- Added the Core qualification inventory and lifecycle sources to both Linux `make all` and Windows `build.cmd`; established Core source must compile on both supported platforms even before runtime integration.
+- Restored the Rictus Core bridge to the shared sibling STN-LABZ module ABI and its Core-owned module registry contract from the prior implementation.\n- Restored and modernized the Core-owned qualification inventory contract. Qualification evidence now identifies the exact module artifact in addition to module/version/Core API metadata, so a changed binary cannot inherit prior qualification merely by retaining the same version.\n- Added Core module lifecycle acceptance criteria under `tests/`, including qualification/enablement separation and the prohibition on module self-enablement.\n- Added the Rictus-owned Core lifecycle policy above the shared ABI registry. Core now has an explicit prepare boundary for exact-artifact qualification and a separate human-authority enable boundary.\n- Added the Core qualification inventory and lifecycle sources to both Linux `make all` and Windows `build.cmd`; established Core source must compile on both supported platforms even before runtime integration.\n- Restored the shared ABI module-loader bridge and established a platform-independent discovery contract. Discovery now produces bounded module candidates only; it does not load, qualify, enable, or activate them.
 
 - Documented the bounded Rictus intelligence watch scope and deterministic relevance/evidence threshold.
 - Explicitly excluded CISA reporting updates from the Rictus alert feed.
@@ -54,7 +54,7 @@
 
 ### Deferred
 
-- Core module discovery/loading and native Windows/Linux loader boundaries.\n- Persistent Core qualification storage after the artifact identity and lifecycle semantics are proven.
+- Native Windows/Linux implementations of the platform-independent module discovery contract and loader mechanics.\n- Persistent Core qualification storage after the artifact identity and lifecycle semantics are proven.
 - IRC migration from executable Core path into its own module after the Core lifecycle is proven.
 - Additional command authority and intelligence behavior above the new dispatch layer.
 - Runtime-state and logging implementation.
