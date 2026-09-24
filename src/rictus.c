@@ -1,69 +1,76 @@
 #include <stdio.h>
 
 #include "rictus.h"
-#include "rictus_config.h"
-#include "rictus_irc.h"
-#include "rictus_net.h"
-#include "rictus_tls.h"
+#include "rictus_module_loader.h"
+
+#if defined(_WIN32)
+#define RICTUS_IRC_MODULE_PATH "build\\windows\\modules\\irc.dll"
+#else
+#define RICTUS_IRC_MODULE_PATH "build/linux/modules/irc.so"
+#endif
 
 int rictus_run(void)
 {
-    rictus_config config;
-    rictus_net_connection connection;
-    rictus_tls_connection tls;
-    char error[256];
+    rictus_module_loader_t loader;
+    const rictus_module_descriptor_t *descriptor = NULL;
+    rictus_module_qualification_result_t qualification;
+    rictus_module_loader_result_t load_result;
+    rictus_module_result_t module_result;
+    rictus_module_host_t host = {0};
 
     puts("STN-LABZ Rictus");
 
-    if (!rictus_config_load(RICTUS_CONFIG_DEFAULT_PATH, &config, error, sizeof(error))) {
-        fprintf(stderr, "[ERROR] Configuration: %s\n", error);
+    rictus_module_loader_init(&loader);
+
+    load_result = rictus_module_loader_load(
+        &loader,
+        "irc",
+        RICTUS_IRC_MODULE_PATH,
+        &descriptor);
+
+    if (load_result != RICTUS_MODULE_LOADER_OK) {
+        fprintf(stderr, "[ERROR] IRC module load: %s\n",
+                rictus_module_loader_result_string(load_result));
         return 1;
     }
 
-    printf("[INFO] IRC configuration loaded: server=%s port=%u tls=%s user=%s channel=%s\n",
-           config.irc.server,
-           (unsigned int)config.irc.port,
-           config.irc.tls ? "true" : "false",
-           config.irc.username,
-           config.irc.channel);
+    printf("[INFO] Module loaded: %s %u.%u.%u\n",
+           descriptor->name,
+           descriptor->version_major,
+           descriptor->version_minor,
+           descriptor->version_patch);
 
-    printf("[INFO] Connecting to %s:%u\n",
-           config.irc.server,
-           (unsigned int)config.irc.port);
-
-    if (!rictus_net_connect(&connection,
-                            config.irc.server,
-                            config.irc.port,
-                            error,
-                            sizeof(error))) {
-        fprintf(stderr, "[ERROR] IRC transport: %s\n", error);
+    module_result = descriptor->qualify(&qualification);
+    if (module_result != RICTUS_MODULE_OK) {
+        fprintf(stderr,
+                "[ERROR] IRC module qualification: %s (%u/%u tests passed)\n",
+                rictus_module_result_string(module_result),
+                qualification.tests_passed,
+                qualification.tests_executed);
+        rictus_module_loader_unload_all(&loader);
         return 1;
     }
 
-    puts("[INFO] IRC transport connected.");
+    printf("[INFO] IRC module qualified: %u/%u tests passed.\n",
+           qualification.tests_passed,
+           qualification.tests_executed);
 
-    if (!config.irc.tls) {
-        fprintf(stderr, "[ERROR] IRC TLS is required for this Rictus connection.\n");
-        rictus_net_close(&connection);
+    /*
+     * Temporary bootstrap authority:
+     * this call represents the operator starting Rictus with IRC enabled.
+     * Persistent human enable/disable state will replace this bootstrap once
+     * Core state persistence is established.
+     */
+    puts("[INFO] IRC module enabled by operator startup.");
+
+    module_result = descriptor->start(&host);
+    if (module_result != RICTUS_MODULE_OK) {
+        fprintf(stderr, "[ERROR] IRC module start: %s\n",
+                rictus_module_result_string(module_result));
+        rictus_module_loader_unload_all(&loader);
         return 1;
     }
 
-    if (!rictus_tls_connect(&tls, &connection, config.irc.server, error, sizeof(error))) {
-        fprintf(stderr, "[ERROR] IRC TLS: %s\n", error);
-        rictus_net_close(&connection);
-        return 1;
-    }
-
-    puts("[INFO] IRC TLS established and certificate verified.");
-
-    if (!rictus_irc_run(&tls, &config.irc, error, sizeof(error))) {
-        fprintf(stderr, "[ERROR] IRC session: %s\n", error);
-        rictus_tls_close(&tls);
-        rictus_net_close(&connection);
-        return 1;
-    }
-
-    rictus_tls_close(&tls);
-    rictus_net_close(&connection);
+    rictus_module_loader_unload_all(&loader);
     return 0;
 }
