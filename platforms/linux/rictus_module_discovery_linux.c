@@ -40,6 +40,7 @@ static int prepare_candidate(
     rictus_module_candidate_t *candidate)
 {
     size_t id_length;
+    int written;
 
     if (module_id == NULL || artifact_path == NULL || candidate == NULL) {
         return 0;
@@ -54,10 +55,11 @@ static int prepare_candidate(
     memcpy(candidate->module_id, module_id, id_length);
     candidate->module_id[id_length] = '\0';
 
-    if (snprintf(candidate->artifact_path,
-                 sizeof(candidate->artifact_path),
-                 "%s", artifact_path) < 0 ||
-        strlen(artifact_path) >= sizeof(candidate->artifact_path)) {
+    written = snprintf(candidate->artifact_path,
+                       sizeof(candidate->artifact_path),
+                       "%s", artifact_path);
+    if (written < 0 ||
+        (size_t)written >= sizeof(candidate->artifact_path)) {
         return 0;
     }
 
@@ -98,8 +100,8 @@ rictus_module_result_t rictus_module_discovery_scan(
 
     while ((entry = readdir(directory)) != NULL) {
         const char *name = entry->d_name;
-        char entry_path[RICTUS_MODULE_PATH_MAX];
-        char artifact_path[RICTUS_MODULE_PATH_MAX];
+        char entry_path[RICTUS_MODULE_DISCOVERY_PATH_MAX];
+        char artifact_path[RICTUS_MODULE_DISCOVERY_PATH_MAX];
         char module_id[RICTUS_MODULE_ID_MAX];
         size_t name_length;
         int written;
