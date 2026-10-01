@@ -5,6 +5,13 @@
 
 int main(int argc, char **argv)
 {
+    /*
+     * Rictus commonly runs under systemd where stdout is not a terminal.
+     * Keep operational diagnostics visible in the journal as they occur
+     * instead of leaving module lifecycle output in a block buffer.
+     */
+    (void)setvbuf(stdout, NULL, _IOLBF, 0);
+
     if (argc == 1) {
         return rictus_run();
     }
