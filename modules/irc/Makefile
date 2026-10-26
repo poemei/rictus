@@ -8,11 +8,13 @@ ROOT ?= ../..
 ABI_INCLUDE_DIR ?= $(ROOT)/include
 INCLUDE_DIR := include
 BUILD_DIR ?= build
-TARGET := $(BUILD_DIR)/irc.so
+
+MODULE_NAME := irc
+TARGET := $(BUILD_DIR)/$(MODULE_NAME).so
 TEST_TARGET := $(BUILD_DIR)/test_irc
 
 PREFIX ?= /opt/rictus
-MODULEDIR ?= $(PREFIX)/modules/irc
+MODULEDIR ?= $(PREFIX)/modules/$(MODULE_NAME)
 
 CPPFLAGS += -I$(INCLUDE_DIR) -I$(ABI_INCLUDE_DIR)
 MODULE_CFLAGS := $(CFLAGS) -fPIC
@@ -40,10 +42,10 @@ test: $(TEST_TARGET)
 
 install: $(TARGET)
 	install -d $(MODULEDIR)
-	install -m 0755 $(TARGET) $(MODULEDIR)/irc.so
+	install -m 0755 $(TARGET) $(MODULEDIR)/$(MODULE_NAME).so
 
 uninstall:
-	rm -f $(MODULEDIR)/irc.so
+	rm -f $(MODULEDIR)/$(MODULE_NAME).so
 
 clean:
 	rm -rf $(BUILD_DIR)
