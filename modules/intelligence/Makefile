@@ -42,10 +42,11 @@ test: $(TEST_TARGET)
 
 install: $(TARGET)
 	install -d $(MODULEDIR)
+	install -m 0644 module.conf $(MODULEDIR)/module.conf
 	install -m 0755 $(TARGET) $(MODULEDIR)/$(MODULE_NAME).so
 
 uninstall:
-	rm -f $(MODULEDIR)/$(MODULE_NAME).so
+	rm -f $(MODULEDIR)/$(MODULE_NAME).so $(MODULEDIR)/module.conf
 
 clean:
 	rm -rf $(BUILD_DIR)
