@@ -358,20 +358,6 @@ done:
     unlink(staged);
 }
 
-static int module_id_from_filename(const char *name, char *id, size_t id_size)
-{
-    size_t length;
-    size_t id_length;
-    if (!name || !id || id_size == 0U) return 0;
-    length = strlen(name);
-    if (length <= 3U || strcmp(name + length - 3U, ".so")) return 0;
-    id_length = length - 3U;
-    if (!id_length || id_length >= id_size) return 0;
-    memcpy(id, name, id_length);
-    id[id_length] = '\0';
-    return 1;
-}
-
 static void scan(stnlabz_hotload_t *watch)
 {
     DIR *directory = opendir(watch->directory);
@@ -380,15 +366,25 @@ static void scan(stnlabz_hotload_t *watch)
 
     while ((entry = readdir(directory)) != NULL) {
         char id[STNLABZ_MODULE_ID_MAX];
-        char binary[1200], sha[65];
+        char module_dir[1200], binary[1200], sha[65];
         struct stat status;
         const stnlabz_module_record_t *record;
         observed_t *known;
+        size_t length;
 
         if (entry->d_name[0] == '.') continue;
-        if (!module_id_from_filename(entry->d_name, id, sizeof id)) continue;
-        if (snprintf(binary, sizeof binary, "%s/%s",
-                     watch->directory, entry->d_name) >= (int)sizeof binary)
+        length = strlen(entry->d_name);
+        if (!length || length >= sizeof id) continue;
+        memcpy(id, entry->d_name, length + 1U);
+
+        if (snprintf(module_dir, sizeof module_dir, "%s/%s",
+                     watch->directory, id) >= (int)sizeof module_dir)
+            continue;
+        if (stat(module_dir, &status) != 0 || !S_ISDIR(status.st_mode))
+            continue;
+
+        if (snprintf(binary, sizeof binary, "%s/%s.so",
+                     module_dir, id) >= (int)sizeof binary)
             continue;
         if (stat(binary, &status) != 0 || !S_ISREG(status.st_mode))
             continue;
