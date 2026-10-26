@@ -395,7 +395,6 @@ static stnlabz_module_result_t intelligence_stop(void)
 
     worker_started = 0;
     curl_global_cleanup();
-    memset(&config, 0, sizeof config);
     return STNLABZ_MODULE_OK;
 }
 
