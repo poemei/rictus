@@ -24,10 +24,10 @@ TARGET ?= bin/rictus
 
 PREFIX ?= /opt/rictus
 BINDIR ?= $(PREFIX)/bin
-LOGDIR ?= /var/log/rictus
+LOGDIR ?= $(PREFIX)/logs
 MODULEDIR ?= $(PREFIX)/modules
 CONFIGDIR ?= $(PREFIX)/config
-STATEDIR ?= /var/lib/rictus
+STATEDIR ?= $(PREFIX)/state
 
 CORE_SRCS := $(sort $(wildcard src/*.c))
 ABI_SRCS := $(addprefix $(ABI_SRC_DIR)/,abi.c module.c module_registry.c loader_linux.c module_discovery_linux.c)
