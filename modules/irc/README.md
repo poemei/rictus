@@ -47,15 +47,10 @@ The module qualification callback runs the same protocol self-test set used by `
 sudo make install
 ```
 
-The installed layout matches Core discovery:
+The installed hotload artifact is:
 
 ```text
-/opt/rictus/bin/modules/irc/module.conf
-/opt/rictus/bin/modules/irc/bin/irc.so
+/opt/rictus/modules/irc.so
 ```
 
-Installation does not grant activation authority.
-
-## Current integration boundary
-
-The current Rictus Core startup path discovers, verifies, and qualifies modules but intentionally activates none. Therefore this module can be built, installed, discovered, and qualified without connecting to IRC until Core receives separately authorized activation wiring.
+Rictus watches `/opt/rictus/modules/`. A new or changed `<module>.so` is snapshotted, loaded, verified, and qualified. A passing candidate is activated. A failing candidate remains inert while Rictus continues running; the same failed bytes are not retried until the file changes.
