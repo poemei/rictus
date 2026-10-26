@@ -50,7 +50,7 @@ sudo make install
 The installed hotload artifact is:
 
 ```text
-/opt/rictus/modules/irc.so
+/opt/rictus/modules/irc/irc.so
 ```
 
-Rictus watches `/opt/rictus/modules/`. A new or changed `<module>.so` is snapshotted, loaded, verified, and qualified. A passing candidate is activated. A failing candidate remains inert while Rictus continues running; the same failed bytes are not retried until the file changes.
+Rictus watches `/opt/rictus/modules/`. A new or changed `/opt/rictus/modules/<module>/<module>.so` is snapshotted, loaded, verified, and qualified. A passing candidate is activated. A failing candidate remains inert while Rictus continues running; the same failed bytes are not retried until the file changes.
