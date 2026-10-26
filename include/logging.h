@@ -2,9 +2,9 @@
 #define STNLABZ_LOGGING_H
 
 #define STNLABZ_INSTALL_PATH "/opt/rictus"
-#define STNLABZ_LOG_DIRECTORY "./logs"
-#define STNLABZ_LOG_PATH "./logs/rictus.log"
-#define STNLABZ_LEGACY_MODULE_LOG_PATH "./logs/modules.log"
+#define STNLABZ_LOG_DIRECTORY "/var/log/rictus"
+#define STNLABZ_LOG_PATH "/var/log/rictus/rictus.log"
+#define STNLABZ_LEGACY_MODULE_LOG_PATH "/var/log/rictus/modules.log"
 
 int stnlabz_log_open(void);
 int stnlabz_log_open_path(const char *absolute_path); /* tests only */
