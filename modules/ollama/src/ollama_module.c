@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include <curl/curl.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include "stnlabz_abi/module.h"
