@@ -265,10 +265,14 @@ static void replace_active(stnlabz_hotload_t *watch, const char *id,
     const stnlabz_module_descriptor_t *descriptor = NULL;
     stnlabz_module_qualification_result_t qualification = {0};
     const stnlabz_module_record_t *current;
-    stnlabz_module_record_t saved, trial;
     stnlabz_module_result_t result;
-    size_t i;
+    observed_t *entry;
+    int live_owned = 0;
 
+    /*
+     * ABI hot replacement rule:
+     * preflight the candidate before disturbing the ACTIVE incumbent.
+     */
     if (!snapshot(binary, staged, sizeof staged, staged_sha)) {
         mark_rejected(watch, id, sha, "candidate_snapshot_failed");
         return;
@@ -292,7 +296,7 @@ static void replace_active(stnlabz_hotload_t *watch, const char *id,
     }
 
     if (!qualify_isolated(id, descriptor, &qualification)) {
-        mark_rejected(watch, id, sha, "qualification_failed");
+        mark_rejected(watch, id, sha, "qualification_failed_incumbent_retained");
         goto done;
     }
 
@@ -301,57 +305,69 @@ static void replace_active(stnlabz_hotload_t *watch, const char *id,
         mark_rejected(watch, id, sha, "incumbent_not_active");
         goto done;
     }
-    saved = *current;
 
+    /*
+     * Candidate is GREEN. Cross the ABI replacement boundary in order:
+     * ACTIVE -> STOPPED -> UNREGISTERED -> old shared object unloaded.
+     */
     if (!stnlabz_core_stop(watch->registry, id)) {
         mark_rejected(watch, id, sha, "incumbent_stop_failed");
         goto done;
     }
-
-    for (i = 0; i < watch->registry->count; ++i) {
-        if (!strcmp(watch->registry->modules[i].descriptor.id, id)) {
-            trial = saved;
-            trial.descriptor = *descriptor;
-            trial.qualification = qualification;
-            trial.state = STNLABZ_MODULE_STATE_QUALIFIED;
-            trial.activation_authorized = 0;
-            watch->registry->modules[i] = trial;
-            break;
-        }
+    if (stnlabz_module_registry_unregister(watch->registry, id) !=
+        STNLABZ_MODULE_OK) {
+        mark_rejected(watch, id, sha, "incumbent_unregister_failed");
+        goto done;
     }
-
-    result = stnlabz_core_activate_qualified(watch->registry, id, watch->host);
-    if (result == STNLABZ_MODULE_OK) {
-        if (stnlabz_module_loader_unload(watch->loader, id) !=
-            STNLABZ_MODULE_LOADER_OK ||
-            !take_loaded_module(watch->loader, &candidate)) {
-            result = STNLABZ_MODULE_ERR_INVALID_STATE;
-        }
-    }
-
-    if (result == STNLABZ_MODULE_OK) {
-        (void)snprintf(known->active_sha, sizeof known->active_sha, "%s", sha);
-        known->rejected_sha[0] = '\0';
-        known->major = descriptor->version_major;
-        known->minor = descriptor->version_minor;
-        known->patch = descriptor->version_patch;
-        log_result("HOTLOAD_ACTIVE", id, sha, "replacement_active");
+    if (stnlabz_module_loader_unload(watch->loader, id) !=
+        STNLABZ_MODULE_LOADER_OK) {
+        mark_rejected(watch, id, sha, "incumbent_unload_failed");
         goto done;
     }
 
-    for (i = 0; i < watch->registry->count; ++i) {
-        if (!strcmp(watch->registry->modules[i].descriptor.id, id)) {
-            watch->registry->modules[i] = saved;
-            watch->registry->modules[i].state = STNLABZ_MODULE_STATE_STOPPED;
-            watch->registry->modules[i].activation_authorized = 0;
-            break;
-        }
+    /*
+     * The candidate handle was loaded only for preflight. Transfer ownership
+     * to the live loader after the old revision has crossed UNREGISTERED.
+     */
+    if (!take_loaded_module(watch->loader, &candidate)) {
+        mark_rejected(watch, id, sha, "candidate_loader_ownership_failed");
+        goto done;
     }
-    result = stnlabz_core_activate_qualified(watch->registry, id, watch->host);
-    mark_rejected(watch, id, sha,
-                  result == STNLABZ_MODULE_OK ?
-                  "candidate_activation_failed_incumbent_restored" :
-                  "candidate_activation_failed_incumbent_restore_failed");
+    live_owned = 1;
+
+    result = stnlabz_module_registry_discover(watch->registry, descriptor);
+    if (result == STNLABZ_MODULE_OK)
+        result = stnlabz_module_registry_verify(watch->registry, id);
+    if (result == STNLABZ_MODULE_OK)
+        result = stnlabz_module_registry_restore_qualification(
+            watch->registry, id, &qualification);
+    if (result == STNLABZ_MODULE_OK)
+        result = stnlabz_core_activate_qualified(
+            watch->registry, id, watch->host);
+
+    if (result != STNLABZ_MODULE_OK) {
+        if (stnlabz_module_registry_find(watch->registry, id)) {
+            const stnlabz_module_record_t *failed =
+                stnlabz_module_registry_find(watch->registry, id);
+            if (failed && failed->state == STNLABZ_MODULE_STATE_ACTIVE)
+                (void)stnlabz_core_stop(watch->registry, id);
+            (void)stnlabz_module_registry_unregister(watch->registry, id);
+        }
+        if (live_owned)
+            (void)stnlabz_module_loader_unload(watch->loader, id);
+        mark_rejected(watch, id, sha, "replacement_activation_failed");
+        goto done;
+    }
+
+    entry = ensure_seen(watch, id);
+    if (entry) {
+        (void)snprintf(entry->active_sha, sizeof entry->active_sha, "%s", sha);
+        entry->rejected_sha[0] = '\0';
+        entry->major = descriptor->version_major;
+        entry->minor = descriptor->version_minor;
+        entry->patch = descriptor->version_patch;
+    }
+    log_result("HOTLOAD_ACTIVE", id, sha, "replacement_active");
 
 done:
     stnlabz_module_loader_unload_all(&candidate);
