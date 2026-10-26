@@ -1,4 +1,4 @@
-# ST-1 / Ezra executable (Linux)
+# STN-LABZ Rictus executable (Linux)
 # The shared STN-LABZ ABI is maintained outside this repository.
 #
 # Default layout:
@@ -20,7 +20,7 @@ ABI_SRC_DIR ?= $(ABI_DIR)/src
 CPPFLAGS += -Iinclude -I$(ABI_INCLUDE_DIR) -Iinclude/stnlabz_abi
 
 BUILD_DIR ?= build
-TARGET ?= bin/ezra
+TARGET ?= bin/rictus
 
 CORE_SRCS := $(sort $(wildcard src/*.c))
 ABI_SRCS := $(addprefix $(ABI_SRC_DIR)/,abi.c module.c module_registry.c loader_linux.c module_discovery_linux.c)
