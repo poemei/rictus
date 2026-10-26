@@ -42,35 +42,77 @@ static int parse_string(const char *p, const char *end,
     return 0;
 }
 
+static int string_bounds(const char *p, const char *end,
+                         const char **content_start,
+                         const char **content_end,
+                         const char **next)
+{
+    int escaped = 0;
+    const char *start;
+
+    if (!p || p >= end || *p != '"' || !content_start || !content_end || !next)
+        return 0;
+    start = ++p;
+    while (p < end) {
+        if (escaped) {
+            escaped = 0;
+            ++p;
+            continue;
+        }
+        if (*p == '\\') {
+            escaped = 1;
+            ++p;
+            continue;
+        }
+        if (*p == '"') {
+            *content_start = start;
+            *content_end = p;
+            *next = p + 1;
+            return 1;
+        }
+        ++p;
+    }
+    return 0;
+}
+
 static int top_level_string_field(const char *object, size_t object_size,
                                   const char *wanted,
                                   char *output, size_t output_size)
 {
     const char *p = object;
     const char *end = object + object_size;
+    size_t wanted_length = strlen(wanted);
     int depth = 0;
 
     while (p < end) {
         if (*p == '"') {
-            char key[64];
-            const char *after_key;
+            const char *content_start;
+            const char *content_end;
+            const char *after;
             const char *value;
+            size_t raw_length;
 
-            if (!parse_string(p, end, key, sizeof key, &after_key)) return 0;
+            if (!string_bounds(p, end, &content_start, &content_end, &after))
+                return 0;
+
             if (depth == 1) {
-                value = skip_space(after_key, end);
+                value = skip_space(after, end);
                 if (value < end && *value == ':') {
-                    value = skip_space(value + 1, end);
-                    if (!strcmp(key, wanted)) {
+                    raw_length = (size_t)(content_end - content_start);
+                    if (raw_length == wanted_length &&
+                        !memchr(content_start, '\\', raw_length) &&
+                        !memcmp(content_start, wanted, wanted_length)) {
+                        value = skip_space(value + 1, end);
                         if (value >= end || *value != '"') return 0;
-                        return parse_string(value, end, output, output_size,
-                                            &after_key);
+                        return parse_string(value, end, output, output_size, &after);
                     }
                 }
             }
-            p = after_key;
+
+            p = after;
             continue;
         }
+
         if (*p == '{') ++depth;
         else if (*p == '}') --depth;
         ++p;
