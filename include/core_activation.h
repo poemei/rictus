@@ -15,6 +15,16 @@ stnlabz_module_result_t stnlabz_core_activate(
     const stnlabz_module_host_t *host,
     const stnlabz_policy_request_t *request);
 
+/*
+ * Rictus automatic module admission.
+ * A module reaches this boundary only after Core verification and qualification.
+ * No external account or conversational identity participates in this decision.
+ */
+stnlabz_module_result_t stnlabz_core_activate_qualified(
+    stnlabz_module_registry_t *registry,
+    const char *module_id,
+    const stnlabz_module_host_t *host);
+
 int stnlabz_core_stop(stnlabz_module_registry_t *registry, const char *module_id);
 int stnlabz_core_stop_all(stnlabz_module_registry_t *registry);
 
