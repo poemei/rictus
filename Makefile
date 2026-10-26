@@ -25,7 +25,7 @@ TARGET ?= bin/rictus
 PREFIX ?= /opt/rictus
 BINDIR ?= $(PREFIX)/bin
 LOGDIR ?= $(PREFIX)/logs
-MODULEDIR ?= $(BINDIR)/modules
+MODULEDIR ?= $(PREFIX)/modules
 CONFIGDIR ?= $(PREFIX)/config
 
 CORE_SRCS := $(sort $(wildcard src/*.c))
