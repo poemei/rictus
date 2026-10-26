@@ -89,6 +89,29 @@ stnlabz_module_result_t stnlabz_core_activate(stnlabz_module_registry_t *registr
     return rc;
 }
 
+stnlabz_module_result_t stnlabz_core_activate_qualified(
+    stnlabz_module_registry_t *registry,
+    const char *module_id,
+    const stnlabz_module_host_t *host)
+{
+    const stnlabz_module_record_t *record;
+    stnlabz_module_result_t rc;
+
+    if (!registry || !module_id || !stnlabz_log_is_open())
+        return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
+    record = stnlabz_module_registry_find(registry, module_id);
+    if (!record) return STNLABZ_MODULE_ERR_NOT_FOUND;
+    if (record->state != STNLABZ_MODULE_STATE_QUALIFIED &&
+        record->state != STNLABZ_MODULE_STATE_STOPPED)
+        return STNLABZ_MODULE_ERR_NOT_QUALIFIED;
+
+    rc = stnlabz_module_abi_authorize_and_activate(registry, module_id, host);
+    if (!audit(rc == STNLABZ_MODULE_OK ? "AUTO_ACTIVE" : "AUTO_ACTIVATION_FAILED",
+               module_id, rc, stnlabz_module_registry_find(registry, module_id)))
+        return STNLABZ_MODULE_ERR_INVALID_STATE;
+    return rc;
+}
+
 int stnlabz_core_stop(stnlabz_module_registry_t *registry, const char *module_id)
 {
     const stnlabz_module_record_t *record;
