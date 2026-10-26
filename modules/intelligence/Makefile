@@ -18,7 +18,7 @@ MODULEDIR ?= $(PREFIX)/modules/$(MODULE_NAME)
 
 CPPFLAGS += -I$(INCLUDE_DIR) -I$(ABI_INCLUDE_DIR)
 MODULE_CFLAGS := $(CFLAGS) -fPIC
-MODULE_SRCS := src/intelligence_module.c src/intelligence_config.c src/intelligence_parser.c
+MODULE_SRCS := src/intelligence_module.c src/intelligence_parser.c
 MODULE_OBJS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(MODULE_SRCS))
 TEST_SRCS := tests/test_intelligence.c src/intelligence_parser.c
 
