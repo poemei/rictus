@@ -23,6 +23,11 @@ int rictus_irc_line_command(const char *line, char *command, size_t command_size
 
     if (!line || !command || command_size < 2U || !params_out) return 0;
     p = line;
+    if (*p == '@') {
+        p = strchr(p, ' ');
+        if (!p) return 0;
+        while (*p == ' ') ++p;
+    }
     if (*p == ':') {
         p = strchr(p, ' ');
         if (!p) return 0;
@@ -77,13 +82,23 @@ int rictus_irc_parse_privmsg(const char *line,
     size_t target_length;
     size_t message_length;
 
-    if (!line || line[0] != ':' || !sender || sender_size < 2U ||
+    const char *prefix;
+
+    if (!line || !sender || sender_size < 2U ||
         !target || target_size < 2U || !message || message_size < 2U)
         return 0;
 
-    bang = strchr(line + 1, '!');
+    prefix = line;
+    if (*prefix == '@') {
+        prefix = strchr(prefix, ' ');
+        if (!prefix) return 0;
+        while (*prefix == ' ') ++prefix;
+    }
+    if (*prefix != ':') return 0;
+
+    bang = strchr(prefix + 1, '!');
     if (!bang) return 0;
-    sender_length = (size_t)(bang - (line + 1));
+    sender_length = (size_t)(bang - (prefix + 1));
     if (!sender_length || sender_length >= sender_size) return 0;
 
     command = strstr(bang, " PRIVMSG ");
@@ -99,7 +114,7 @@ int rictus_irc_parse_privmsg(const char *line,
         !message_length || message_length >= message_size)
         return 0;
 
-    memcpy(sender, line + 1, sender_length);
+    memcpy(sender, prefix + 1, sender_length);
     sender[sender_length] = '\0';
     memcpy(target, target_start, target_length);
     target[target_length] = '\0';
@@ -178,6 +193,8 @@ int rictus_irc_run_selftests(unsigned int *executed, unsigned int *passed,
     expect(rictus_irc_word_present("sasl=PLAIN,EXTERNAL", "sasl"), &e, &p);
     expect(rictus_irc_parse_privmsg(":PoeMei!u@h PRIVMSG #stn-labz :rictus: status", sender, sizeof sender, target, sizeof target, message, sizeof message) && !strcmp(sender, "PoeMei") && !strcmp(target, "#stn-labz") && !strcmp(message, "rictus: status"), &e, &p);
     expect(rictus_irc_parse_privmsg(":PoeMei!u@h PRIVMSG rictus :hello", sender, sizeof sender, target, sizeof target, message, sizeof message) && !strcmp(target, "rictus") && !strcmp(message, "hello"), &e, &p);
+    expect(rictus_irc_line_command("@account=PoeMei :PoeMei!u@h PRIVMSG #stn-labz :rictus: who are you?", command, sizeof command, &params) && !strcmp(command, "PRIVMSG"), &e, &p);
+    expect(rictus_irc_parse_privmsg("@account=PoeMei :PoeMei!u@h PRIVMSG #stn-labz :rictus: who are you?", sender, sizeof sender, target, sizeof target, message, sizeof message) && !strcmp(sender, "PoeMei") && !strcmp(target, "#stn-labz") && !strcmp(message, "rictus: who are you?"), &e, &p);
 
     neg_e = 1;
     neg_p = !rictus_irc_build_plain(NULL, "p", encoded, sizeof encoded);
