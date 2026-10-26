@@ -26,6 +26,14 @@ static rictus_command_entry_t commands[RICTUS_HOST_COMMAND_MAX];
 static atomic_flag service_lock = ATOMIC_FLAG_INIT;
 static atomic_flag command_lock = ATOMIC_FLAG_INIT;
 
+static size_t bounded_length(const char *text, size_t maximum)
+{
+    size_t length = 0U;
+    if (!text) return maximum;
+    while (length < maximum && text[length]) ++length;
+    return length;
+}
+
 static void lock(atomic_flag *flag)
 {
     while (atomic_flag_test_and_set_explicit(flag, memory_order_acquire)) {}
@@ -45,7 +53,7 @@ static int register_service(const char *name,
     size_t length;
 
     if (!name || !handler) return 0;
-    length = strnlen(name, STNLABZ_MODULE_SERVICE_NAME_MAX);
+    length = bounded_length(name, STNLABZ_MODULE_SERVICE_NAME_MAX);
     if (!length || length >= STNLABZ_MODULE_SERVICE_NAME_MAX) return 0;
 
     lock(&service_lock);
@@ -149,7 +157,7 @@ static int send_message(const char *message)
     size_t length;
 
     if (!message) return 0;
-    length = strnlen(message, sizeof request.message);
+    length = bounded_length(message, sizeof request.message);
     if (!length || length >= sizeof request.message) return 0;
     memset(&request, 0, sizeof request);
     memcpy(request.message, message, length + 1U);
@@ -166,8 +174,8 @@ static int send_private_message(const char *target, const char *message)
     size_t message_length;
 
     if (!target || !message) return 0;
-    target_length = strnlen(target, sizeof request.target);
-    message_length = strnlen(message, sizeof request.message);
+    target_length = bounded_length(target, sizeof request.target);
+    message_length = bounded_length(message, sizeof request.message);
     if (!target_length || target_length >= sizeof request.target ||
         !message_length || message_length >= sizeof request.message)
         return 0;
@@ -190,7 +198,7 @@ static int register_command(const char *name,
     size_t length;
 
     if (!name || !handler) return 0;
-    length = strnlen(name, STNLABZ_MODULE_COMMAND_NAME_MAX);
+    length = bounded_length(name, STNLABZ_MODULE_COMMAND_NAME_MAX);
     if (!length || length >= STNLABZ_MODULE_COMMAND_NAME_MAX) return 0;
 
     lock(&command_lock);
