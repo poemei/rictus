@@ -12,8 +12,7 @@ TARGET := $(BUILD_DIR)/irc.so
 TEST_TARGET := $(BUILD_DIR)/test_irc
 
 PREFIX ?= /opt/rictus
-MODULE_ROOT ?= $(PREFIX)/modules/irc
-MODULE_BIN_DIR ?= $(MODULE_ROOT)
+MODULEDIR ?= $(PREFIX)/modules
 
 CPPFLAGS += -I$(INCLUDE_DIR) -I$(ABI_INCLUDE_DIR)
 MODULE_CFLAGS := $(CFLAGS) -fPIC
@@ -40,11 +39,11 @@ test: $(TEST_TARGET)
 	./$(TEST_TARGET)
 
 install: $(TARGET)
-	install -d $(MODULE_BIN_DIR)
-	install -m 0755 $(TARGET) $(MODULE_BIN_DIR)/irc.so
+	install -d $(MODULEDIR)
+	install -m 0755 $(TARGET) $(MODULEDIR)/irc.so
 
 uninstall:
-	rm -f $(MODULE_BIN_DIR)/irc.so
+	rm -f $(MODULEDIR)/irc.so
 
 clean:
 	rm -rf $(BUILD_DIR)
