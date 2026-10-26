@@ -24,9 +24,10 @@ TARGET ?= bin/rictus
 
 PREFIX ?= /opt/rictus
 BINDIR ?= $(PREFIX)/bin
-LOGDIR ?= $(PREFIX)/logs
+LOGDIR ?= /var/log/rictus
 MODULEDIR ?= $(PREFIX)/modules
 CONFIGDIR ?= $(PREFIX)/config
+STATEDIR ?= /var/lib/rictus
 
 CORE_SRCS := $(sort $(wildcard src/*.c))
 ABI_SRCS := $(addprefix $(ABI_SRC_DIR)/,abi.c module.c module_registry.c loader_linux.c module_discovery_linux.c)
@@ -59,7 +60,7 @@ $(BUILD_DIR)/abi/%.o: $(ABI_SRC_DIR)/%.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -c $< -o $@
 
 install: $(TARGET)
-	install -d $(BINDIR) $(LOGDIR) $(MODULEDIR) $(CONFIGDIR)
+	install -d $(BINDIR) $(LOGDIR) $(MODULEDIR) $(CONFIGDIR) $(STATEDIR)
 	install -m 0755 $(TARGET) $(BINDIR)/rictus
 
 uninstall:
