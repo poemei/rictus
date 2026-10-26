@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
@@ -15,11 +16,12 @@
 #include <openssl/x509_vfy.h>
 #include "stnlabz_abi/module.h"
 #include "rictus_transport.h"
+#include "rictus_llm.h"
 #include "irc_internal.h"
 
 #define IRC_VERSION_MAJOR 1U
 #define IRC_VERSION_MINOR 0U
-#define IRC_VERSION_PATCH 3U
+#define IRC_VERSION_PATCH 4U
 #define IRC_OUTBOUND_MAX 32U
 #define IRC_STARTUP_WAIT_SECONDS 30U
 
@@ -242,6 +244,86 @@ static void unregister_transport_services(void)
     module_host = NULL;
 }
 
+
+static int channel_prompt(const char *message, const char **prompt_out)
+{
+    size_t nick_length;
+    const char *p;
+
+    if (!message || !prompt_out) return 0;
+    nick_length = strlen(config.nick);
+    if (strncasecmp(message, config.nick, nick_length) != 0) return 0;
+    p = message + nick_length;
+    if (*p && *p != ':' && *p != ',' && *p != ' ' && *p != '\t') return 0;
+    while (*p == ':' || *p == ',' || *p == ' ' || *p == '\t') ++p;
+    if (!*p) return 0;
+    *prompt_out = p;
+    return 1;
+}
+
+static void sanitize_irc_text(char *text)
+{
+    char *p;
+    if (!text) return;
+    for (p = text; *p; ++p) {
+        if (*p == '\r' || *p == '\n') *p = ' ';
+    }
+}
+
+static void handle_conversation_message(const char *line)
+{
+    char sender[RICTUS_IRC_NICK_MAX];
+    char target[RICTUS_IRC_CHANNEL_MAX];
+    char message[RICTUS_LLM_PROMPT_MAX];
+    const char *prompt = NULL;
+    int private_message = 0;
+    rictus_llm_request_t request;
+    rictus_llm_response_t response;
+    size_t prompt_length;
+    size_t response_used = 0U;
+    stnlabz_module_result_t result;
+
+    if (!module_host || !module_host->invoke_service) return;
+    if (!rictus_irc_parse_privmsg(line,
+                                  sender, sizeof sender,
+                                  target, sizeof target,
+                                  message, sizeof message))
+        return;
+    if (!strcasecmp(sender, config.nick)) return;
+
+    if (!strcasecmp(target, config.nick)) {
+        private_message = 1;
+        prompt = message;
+    } else if (!strcasecmp(target, config.channel)) {
+        if (!channel_prompt(message, &prompt)) return;
+    } else {
+        return;
+    }
+
+    prompt_length = strlen(prompt);
+    if (!prompt_length || prompt_length >= sizeof request.prompt) return;
+
+    memset(&request, 0, sizeof request);
+    memset(&response, 0, sizeof response);
+    memcpy(request.prompt, prompt, prompt_length + 1U);
+
+    result = module_host->invoke_service(RICTUS_LLM_GENERATE_SERVICE,
+                                         &request, sizeof request,
+                                         &response, sizeof response,
+                                         &response_used);
+    if (result != STNLABZ_MODULE_OK ||
+        response_used != sizeof response ||
+        !memchr(response.text, '\0', sizeof response.text) ||
+        !response.text[0])
+        return;
+
+    sanitize_irc_text(response.text);
+    if (private_message)
+        (void)queue_outbound(1, sender, response.text);
+    else
+        (void)queue_outbound(0, NULL, response.text);
+}
+
 static int send_authenticate_plain(SSL *ssl)
 {
     char encoded[1024];
@@ -285,6 +367,11 @@ static int handle_line(SSL *ssl, const char *line, int *sasl_seen,
     const char *params;
 
     if (!rictus_irc_line_command(line, command, sizeof command, &params)) return 1;
+
+    if (!strcmp(command, "PRIVMSG")) {
+        handle_conversation_message(line);
+        return 1;
+    }
 
     if (!strcmp(command, "PING")) {
         char response[RICTUS_IRC_LINE_MAX];
