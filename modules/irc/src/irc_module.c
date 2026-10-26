@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <netdb.h>
+#include <poll.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdio.h>
@@ -13,17 +14,34 @@
 #include <openssl/ssl.h>
 #include <openssl/x509_vfy.h>
 #include "stnlabz_abi/module.h"
+#include "rictus_transport.h"
 #include "irc_internal.h"
 
 #define IRC_VERSION_MAJOR 1U
 #define IRC_VERSION_MINOR 0U
-#define IRC_VERSION_PATCH 0U
+#define IRC_VERSION_PATCH 1U
+#define IRC_OUTBOUND_MAX 32U
+#define IRC_STARTUP_WAIT_SECONDS 30U
+
+typedef struct {
+    int private_message;
+    char target[RICTUS_TRANSPORT_TARGET_MAX];
+    char message[RICTUS_TRANSPORT_MESSAGE_MAX];
+} irc_outbound_t;
 
 static pthread_t worker;
+static pthread_mutex_t outbound_lock = PTHREAD_MUTEX_INITIALIZER;
 static atomic_int stop_requested;
 static atomic_int active_socket;
+static atomic_int online;
 static int worker_started;
+static int services_registered;
+static const stnlabz_module_host_t *module_host;
 static rictus_irc_config_t config;
+static irc_outbound_t outbound[IRC_OUTBOUND_MAX];
+static size_t outbound_head;
+static size_t outbound_tail;
+static size_t outbound_count;
 
 static void status(const char *message)
 {
@@ -33,20 +51,27 @@ static void status(const char *message)
     }
 }
 
+static int sleep_milliseconds(long milliseconds)
+{
+    struct timespec delay;
+    struct timespec remaining;
+
+    delay.tv_sec = milliseconds / 1000L;
+    delay.tv_nsec = (milliseconds % 1000L) * 1000000L;
+    remaining = delay;
+    while (nanosleep(&remaining, &remaining) != 0) {
+        if (errno == EINTR) continue;
+        return 0;
+    }
+    return 1;
+}
+
 static int sleep_interruptible(unsigned int seconds)
 {
-    struct timespec delay = { 1, 0 };
     unsigned int i;
     for (i = 0; i < seconds; ++i) {
-        struct timespec remaining = delay;
         if (atomic_load(&stop_requested)) return 0;
-        while (nanosleep(&remaining, &remaining) != 0) {
-            if (errno == EINTR) {
-                if (atomic_load(&stop_requested)) return 0;
-                continue;
-            }
-            return 0;
-        }
+        if (!sleep_milliseconds(1000L)) return 0;
     }
     return !atomic_load(&stop_requested);
 }
@@ -96,6 +121,127 @@ static int send_line(SSL *ssl, const char *line)
     return ssl_write_all(ssl, buffer, (size_t)written);
 }
 
+static int queue_outbound(int private_message,
+                          const char *target,
+                          const char *message)
+{
+    irc_outbound_t *slot;
+    size_t target_length = 0U;
+    size_t message_length;
+
+    if (!message || !*message || !atomic_load(&online)) return 0;
+    message_length = strlen(message);
+    if (message_length >= RICTUS_TRANSPORT_MESSAGE_MAX) return 0;
+    if (private_message) {
+        if (!target || !*target) return 0;
+        target_length = strlen(target);
+        if (target_length >= RICTUS_TRANSPORT_TARGET_MAX) return 0;
+    }
+
+    if (pthread_mutex_lock(&outbound_lock) != 0) return 0;
+    if (outbound_count >= IRC_OUTBOUND_MAX) {
+        (void)pthread_mutex_unlock(&outbound_lock);
+        return 0;
+    }
+
+    slot = &outbound[outbound_tail];
+    memset(slot, 0, sizeof *slot);
+    slot->private_message = private_message;
+    if (private_message) memcpy(slot->target, target, target_length + 1U);
+    memcpy(slot->message, message, message_length + 1U);
+    outbound_tail = (outbound_tail + 1U) % IRC_OUTBOUND_MAX;
+    outbound_count++;
+    (void)pthread_mutex_unlock(&outbound_lock);
+    return 1;
+}
+
+static int flush_outbound(SSL *ssl)
+{
+    for (;;) {
+        irc_outbound_t item;
+        char line[RICTUS_IRC_LINE_MAX];
+        int written;
+
+        if (pthread_mutex_lock(&outbound_lock) != 0) return 0;
+        if (!outbound_count) {
+            (void)pthread_mutex_unlock(&outbound_lock);
+            return 1;
+        }
+        item = outbound[outbound_head];
+        memset(&outbound[outbound_head], 0, sizeof outbound[outbound_head]);
+        outbound_head = (outbound_head + 1U) % IRC_OUTBOUND_MAX;
+        outbound_count--;
+        (void)pthread_mutex_unlock(&outbound_lock);
+
+        written = snprintf(line, sizeof line, "PRIVMSG %s :%s",
+                           item.private_message ? item.target : config.channel,
+                           item.message);
+        if (written < 0 || (size_t)written >= sizeof line || !send_line(ssl, line))
+            return 0;
+    }
+}
+
+static stnlabz_module_result_t channel_send_service(
+    const void *request, size_t request_size,
+    void *response, size_t response_size, size_t *response_used,
+    void *handler_context)
+{
+    const rictus_transport_channel_request_t *message = request;
+    (void)response;
+    (void)response_size;
+    (void)handler_context;
+    if (response_used) *response_used = 0U;
+    if (!message || request_size != sizeof *message ||
+        !memchr(message->message, '\0', sizeof message->message))
+        return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
+    return queue_outbound(0, NULL, message->message) ?
+        STNLABZ_MODULE_OK : STNLABZ_MODULE_ERR_INVALID_STATE;
+}
+
+static stnlabz_module_result_t private_send_service(
+    const void *request, size_t request_size,
+    void *response, size_t response_size, size_t *response_used,
+    void *handler_context)
+{
+    const rictus_transport_private_request_t *message = request;
+    (void)response;
+    (void)response_size;
+    (void)handler_context;
+    if (response_used) *response_used = 0U;
+    if (!message || request_size != sizeof *message ||
+        !memchr(message->target, '\0', sizeof message->target) ||
+        !memchr(message->message, '\0', sizeof message->message))
+        return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
+    return queue_outbound(1, message->target, message->message) ?
+        STNLABZ_MODULE_OK : STNLABZ_MODULE_ERR_INVALID_STATE;
+}
+
+static int register_transport_services(const stnlabz_module_host_t *host)
+{
+    if (!host || !host->register_service || !host->unregister_service)
+        return 0;
+    if (!host->register_service(RICTUS_TRANSPORT_CHANNEL_SEND_SERVICE,
+                                channel_send_service, NULL))
+        return 0;
+    if (!host->register_service(RICTUS_TRANSPORT_PRIVATE_SEND_SERVICE,
+                                private_send_service, NULL)) {
+        (void)host->unregister_service(RICTUS_TRANSPORT_CHANNEL_SEND_SERVICE, NULL);
+        return 0;
+    }
+    services_registered = 1;
+    module_host = host;
+    return 1;
+}
+
+static void unregister_transport_services(void)
+{
+    if (!services_registered || !module_host) return;
+    (void)module_host->unregister_service(RICTUS_TRANSPORT_PRIVATE_SEND_SERVICE, NULL);
+    (void)module_host->unregister_service(RICTUS_TRANSPORT_CHANNEL_SEND_SERVICE, NULL);
+    services_registered = 0;
+    module_host = NULL;
+}
+
 static int send_authenticate_plain(SSL *ssl)
 {
     char encoded[1024];
@@ -112,11 +258,16 @@ static int send_authenticate_plain(SSL *ssl)
         if (chunk > 400U) chunk = 400U;
         written = snprintf(line, sizeof line, "AUTHENTICATE %.*s",
                            (int)chunk, encoded + offset);
-        if (written < 0 || (size_t)written >= sizeof line || !send_line(ssl, line))
+        if (written < 0 || (size_t)written >= sizeof line || !send_line(ssl, line)) {
+            OPENSSL_cleanse(encoded, sizeof encoded);
             return 0;
+        }
         offset += chunk;
     }
-    if (length % 400U == 0U && !send_line(ssl, "AUTHENTICATE +")) return 0;
+    if (length % 400U == 0U && !send_line(ssl, "AUTHENTICATE +")) {
+        OPENSSL_cleanse(encoded, sizeof encoded);
+        return 0;
+    }
     OPENSSL_cleanse(encoded, sizeof encoded);
     return 1;
 }
@@ -128,7 +279,7 @@ static int cap_is_continuation(const char *params)
 
 static int handle_line(SSL *ssl, const char *line, int *sasl_seen,
                        int *sasl_requested, int *authenticated,
-                       int *registered, int *joined)
+                       int *registered, int *join_sent, int *joined)
 {
     char command[32];
     const char *params;
@@ -163,6 +314,7 @@ static int handle_line(SSL *ssl, const char *line, int *sasl_seen,
 
     if (!strcmp(command, "903")) {
         *authenticated = 1;
+        status("SASL authentication successful");
         return send_line(ssl, "CAP END");
     }
     if (!strcmp(command, "904") || !strcmp(command, "905") ||
@@ -170,34 +322,53 @@ static int handle_line(SSL *ssl, const char *line, int *sasl_seen,
 
     if (!strcmp(command, "001")) {
         *registered = 1;
-        if (*authenticated && !*joined) {
+        if (*authenticated && !*join_sent) {
             char join[RICTUS_IRC_CHANNEL_MAX + 8U];
             int written = snprintf(join, sizeof join, "JOIN %s", config.channel);
-            if (written < 0 || (size_t)written >= sizeof join || !send_line(ssl, join)) return 0;
-            *joined = 1;
-            status("authenticated and join requested");
+            if (written < 0 || (size_t)written >= sizeof join || !send_line(ssl, join))
+                return 0;
+            *join_sent = 1;
+            status("authenticated; join requested");
         }
         return 1;
     }
 
+    if (!strcmp(command, "366") && *join_sent && strstr(params, config.channel)) {
+        if (!*joined) {
+            *joined = 1;
+            atomic_store(&online, 1);
+            status("joined configured IRC channel; Rictus online");
+        }
+        return 1;
+    }
+
+    if (!strcmp(command, "471") || !strcmp(command, "473") ||
+        !strcmp(command, "474") || !strcmp(command, "475") ||
+        !strcmp(command, "476") || !strcmp(command, "477") ||
+        !strcmp(command, "489")) return 0;
+
     if (!strcmp(command, "433")) return 0;
 
-    if (!strcmp(command, "KICK") && strstr(params, config.channel) && strstr(params, config.nick)) {
+    if (!strcmp(command, "KICK") &&
+        strstr(params, config.channel) && strstr(params, config.nick)) {
         char join[RICTUS_IRC_CHANNEL_MAX + 8U];
         int written = snprintf(join, sizeof join, "JOIN %s", config.channel);
         if (written < 0 || (size_t)written >= sizeof join) return 0;
         *joined = 0;
+        *join_sent = 0;
+        atomic_store(&online, 0);
         if (!send_line(ssl, join)) return 0;
-        *joined = 1;
+        *join_sent = 1;
         status("rejoin requested after kick");
     }
 
-    if (*registered && *authenticated && !*joined) {
+    if (*registered && *authenticated && !*join_sent) {
         char join[RICTUS_IRC_CHANNEL_MAX + 8U];
         int written = snprintf(join, sizeof join, "JOIN %s", config.channel);
-        if (written < 0 || (size_t)written >= sizeof join || !send_line(ssl, join)) return 0;
-        *joined = 1;
-        status("authenticated and join requested");
+        if (written < 0 || (size_t)written >= sizeof join || !send_line(ssl, join))
+            return 0;
+        *join_sent = 1;
+        status("authenticated; join requested");
     }
     return 1;
 }
@@ -206,16 +377,19 @@ static int run_session(void)
 {
     SSL_CTX *ctx = NULL;
     SSL *ssl = NULL;
+    struct pollfd pollfd;
     int fd = -1;
     int ok = 0;
     int sasl_seen = 0;
     int sasl_requested = 0;
     int authenticated = 0;
     int registered = 0;
+    int join_sent = 0;
     int joined = 0;
     char receive_buffer[8192];
     size_t receive_used = 0U;
 
+    atomic_store(&online, 0);
     fd = tcp_connect(config.server, config.port);
     if (fd < 0) goto done;
     atomic_store(&active_socket, fd);
@@ -244,9 +418,26 @@ static int run_session(void)
     }
     status("TLS connected; negotiating CAP and SASL");
 
+    memset(&pollfd, 0, sizeof pollfd);
+    pollfd.fd = fd;
+    pollfd.events = POLLIN;
+
     while (!atomic_load(&stop_requested)) {
+        int polled;
         int received;
         char *newline;
+
+        if (!flush_outbound(ssl)) goto done;
+
+        polled = poll(&pollfd, 1, 1000);
+        if (polled < 0) {
+            if (errno == EINTR) continue;
+            goto done;
+        }
+        if (polled == 0) continue;
+        if (pollfd.revents & (POLLERR | POLLHUP | POLLNVAL)) goto done;
+        if (!(pollfd.revents & POLLIN)) continue;
+
         if (receive_used >= sizeof receive_buffer - 1U) goto done;
         received = SSL_read(ssl, receive_buffer + receive_used,
                             (int)(sizeof receive_buffer - receive_used - 1U));
@@ -265,12 +456,14 @@ static int run_session(void)
             receive_used -= consumed;
             receive_buffer[receive_used] = '\0';
             if (!handle_line(ssl, line, &sasl_seen, &sasl_requested,
-                             &authenticated, &registered, &joined)) goto done;
+                             &authenticated, &registered, &join_sent, &joined))
+                goto done;
         }
     }
     ok = 1;
 
 done:
+    atomic_store(&online, 0);
     atomic_store(&active_socket, -1);
     if (ssl) {
         if (ok) (void)SSL_shutdown(ssl);
@@ -298,6 +491,16 @@ static void *irc_worker(void *unused)
     return NULL;
 }
 
+static void reset_outbound(void)
+{
+    if (pthread_mutex_lock(&outbound_lock) != 0) return;
+    memset(outbound, 0, sizeof outbound);
+    outbound_head = 0U;
+    outbound_tail = 0U;
+    outbound_count = 0U;
+    (void)pthread_mutex_unlock(&outbound_lock);
+}
+
 static stnlabz_module_result_t irc_qualify(stnlabz_module_qualification_result_t *result)
 {
     unsigned int executed = 0U;
@@ -320,25 +523,56 @@ static stnlabz_module_result_t irc_qualify(stnlabz_module_qualification_result_t
 
 static stnlabz_module_result_t irc_start(const stnlabz_module_host_t *host)
 {
-    (void)host;
+    unsigned int waited;
+
     if (worker_started) return STNLABZ_MODULE_ERR_INVALID_STATE;
+    if (!register_transport_services(host)) {
+        status("ABI communication host unavailable");
+        return STNLABZ_MODULE_ERR_START_FAILED;
+    }
     if (!rictus_irc_config_load(RICTUS_IRC_ENV_PATH, &config)) {
         status("credential/config load failed");
+        unregister_transport_services();
         return STNLABZ_MODULE_ERR_START_FAILED;
     }
     if (OPENSSL_init_ssl(0, NULL) != 1) {
         rictus_irc_config_clear(&config);
+        unregister_transport_services();
         return STNLABZ_MODULE_ERR_START_FAILED;
     }
+
+    reset_outbound();
     atomic_store(&stop_requested, 0);
     atomic_store(&active_socket, -1);
+    atomic_store(&online, 0);
+
     if (pthread_create(&worker, NULL, irc_worker, NULL) != 0) {
         rictus_irc_config_clear(&config);
+        unregister_transport_services();
         return STNLABZ_MODULE_ERR_START_FAILED;
     }
     worker_started = 1;
-    status("transport worker started");
-    return STNLABZ_MODULE_OK;
+
+    for (waited = 0U; waited < IRC_STARTUP_WAIT_SECONDS * 10U; ++waited) {
+        if (atomic_load(&online)) {
+            status("transport active");
+            return STNLABZ_MODULE_OK;
+        }
+        if (!sleep_milliseconds(100L)) break;
+    }
+
+    status("startup did not reach authenticated channel state");
+    atomic_store(&stop_requested, 1);
+    {
+        int fd = atomic_load(&active_socket);
+        if (fd >= 0) (void)shutdown(fd, SHUT_RDWR);
+    }
+    (void)pthread_join(worker, NULL);
+    worker_started = 0;
+    reset_outbound();
+    rictus_irc_config_clear(&config);
+    unregister_transport_services();
+    return STNLABZ_MODULE_ERR_START_FAILED;
 }
 
 static stnlabz_module_result_t irc_stop(void)
@@ -350,7 +584,10 @@ static stnlabz_module_result_t irc_stop(void)
     if (fd >= 0) (void)shutdown(fd, SHUT_RDWR);
     if (pthread_join(worker, NULL) != 0) return STNLABZ_MODULE_ERR_STOP_FAILED;
     worker_started = 0;
+    atomic_store(&online, 0);
+    reset_outbound();
     rictus_irc_config_clear(&config);
+    unregister_transport_services();
     status("transport worker stopped");
     return STNLABZ_MODULE_OK;
 }
