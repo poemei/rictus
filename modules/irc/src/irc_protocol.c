@@ -63,6 +63,50 @@ int rictus_irc_word_present(const char *text, const char *word)
     return 0;
 }
 
+
+int rictus_irc_parse_privmsg(const char *line,
+                             char *sender, size_t sender_size,
+                             char *target, size_t target_size,
+                             char *message, size_t message_size)
+{
+    const char *bang;
+    const char *command;
+    const char *target_start;
+    const char *message_start;
+    size_t sender_length;
+    size_t target_length;
+    size_t message_length;
+
+    if (!line || line[0] != ':' || !sender || sender_size < 2U ||
+        !target || target_size < 2U || !message || message_size < 2U)
+        return 0;
+
+    bang = strchr(line + 1, '!');
+    if (!bang) return 0;
+    sender_length = (size_t)(bang - (line + 1));
+    if (!sender_length || sender_length >= sender_size) return 0;
+
+    command = strstr(bang, " PRIVMSG ");
+    if (!command) return 0;
+    target_start = command + 9;
+    message_start = strstr(target_start, " :");
+    if (!message_start) return 0;
+
+    target_length = (size_t)(message_start - target_start);
+    message_start += 2;
+    message_length = strlen(message_start);
+    if (!target_length || target_length >= target_size ||
+        !message_length || message_length >= message_size)
+        return 0;
+
+    memcpy(sender, line + 1, sender_length);
+    sender[sender_length] = '\0';
+    memcpy(target, target_start, target_length);
+    target[target_length] = '\0';
+    memcpy(message, message_start, message_length + 1U);
+    return 1;
+}
+
 int rictus_irc_build_plain(const char *account, const char *password,
                            char *output, size_t output_size)
 {
@@ -109,6 +153,7 @@ int rictus_irc_run_selftests(unsigned int *executed, unsigned int *passed,
     char command[32];
     const char *params = NULL;
     char encoded[256];
+    char sender[64], target[128], message[256];
     unsigned int e = 0U;
     unsigned int p = 0U;
     int neg_e = 0;
@@ -131,6 +176,8 @@ int rictus_irc_run_selftests(unsigned int *executed, unsigned int *passed,
     expect(rictus_irc_line_command(":s NOTICE r :hello",
            command, sizeof command, &params) && !strcmp(command, "NOTICE"), &e, &p);
     expect(rictus_irc_word_present("sasl=PLAIN,EXTERNAL", "sasl"), &e, &p);
+    expect(rictus_irc_parse_privmsg(":PoeMei!u@h PRIVMSG #stn-labz :rictus: status", sender, sizeof sender, target, sizeof target, message, sizeof message) && !strcmp(sender, "PoeMei") && !strcmp(target, "#stn-labz") && !strcmp(message, "rictus: status"), &e, &p);
+    expect(rictus_irc_parse_privmsg(":PoeMei!u@h PRIVMSG rictus :hello", sender, sizeof sender, target, sizeof target, message, sizeof message) && !strcmp(target, "rictus") && !strcmp(message, "hello"), &e, &p);
 
     neg_e = 1;
     neg_p = !rictus_irc_build_plain(NULL, "p", encoded, sizeof encoded);
