@@ -19,11 +19,12 @@
 
 #define INTELLIGENCE_VERSION_MAJOR 1U
 #define INTELLIGENCE_VERSION_MINOR 0U
-#define INTELLIGENCE_VERSION_PATCH 3U
+#define INTELLIGENCE_VERSION_PATCH 4U
 #define INTELLIGENCE_RESPONSE_MAX (4U * 1024U * 1024U)
 #define INTELLIGENCE_RECORD_MAX 512U
 #define INTELLIGENCE_FEED_URL "https://api.stn-labz.com/threats"
 #define INTELLIGENCE_INTERVAL_SECONDS 60U
+#define INTELLIGENCE_STATE_DIRECTORY "/var/lib/rictus"
 
 typedef struct {
     char *data;
@@ -194,6 +195,21 @@ static int fetch_feed(char **json)
     return 1;
 }
 
+static int ensure_state_directory(void)
+{
+    struct stat status;
+
+    if (stat(INTELLIGENCE_STATE_DIRECTORY, &status) == 0)
+        return S_ISDIR(status.st_mode);
+
+    if (errno != ENOENT) return 0;
+    if (mkdir(INTELLIGENCE_STATE_DIRECTORY, 0750) != 0 && errno != EEXIST)
+        return 0;
+
+    return stat(INTELLIGENCE_STATE_DIRECTORY, &status) == 0 &&
+           S_ISDIR(status.st_mode);
+}
+
 static int read_cursor(char *cursor, size_t cursor_size)
 {
     FILE *file;
@@ -202,6 +218,7 @@ static int read_cursor(char *cursor, size_t cursor_size)
     if (!cursor || cursor_size < 2U) return 0;
     cursor[0] = '\0';
 
+    if (!ensure_state_directory()) return 0;
     file = fopen(RICTUS_INTELLIGENCE_STATE_PATH, "r");
     if (!file) return errno == ENOENT ? 1 : 0;
     if (!fgets(cursor, (int)cursor_size, file)) {
@@ -223,6 +240,7 @@ static int save_cursor(const char *cursor)
     int length;
 
     if (!cursor || !bounded_text(cursor)) return 0;
+    if (!ensure_state_directory()) return 0;
     length = snprintf(temporary, sizeof temporary, "%s.tmp", RICTUS_INTELLIGENCE_STATE_PATH);
     if (length < 0 || (size_t)length >= sizeof temporary) return 0;
 
