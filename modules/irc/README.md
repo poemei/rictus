@@ -54,3 +54,16 @@ The installed hotload artifact is:
 ```
 
 Rictus watches `/opt/rictus/modules/`. A new or changed `/opt/rictus/modules/<module>/<module>.so` is snapshotted, loaded, verified, and qualified. A passing candidate is activated. A failing candidate remains inert while Rictus continues running; the same failed bytes are not retried until the file changes.
+
+
+## Conversational handoff
+
+IRC remains the transport owner. When the `rictus.llm.generate` service is
+available, the IRC module forwards only:
+
+- private messages sent directly to Rictus
+- channel messages explicitly addressed as `rictus: ...`, `rictus, ...`, or
+  `rictus ...`
+
+Ordinary channel traffic is not sent to the LLM service. Generated CR/LF
+characters are flattened before an IRC reply is queued.
