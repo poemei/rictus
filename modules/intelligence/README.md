@@ -16,7 +16,7 @@ API's explicit `severity` and `relevance` classifications.
 The watcher is persistent. The newest observed threat ID is stored in:
 
 ```text
-/var/lib/rictus/intelligence.cursor
+/opt/rictus/state/intelligence.cursor
 ```
 
 That cursor prevents the entire feed from replaying after a normal restart.
