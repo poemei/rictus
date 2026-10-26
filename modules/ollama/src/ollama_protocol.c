@@ -178,6 +178,12 @@ int rictus_ollama_run_selftests(unsigned int *executed,
     expect(!rictus_ollama_extract_response("{\"done\":true}",
            response, sizeof response), &e, &p);
     expect(!rictus_ollama_build_request("", request, sizeof request), &e, &p);
+    expect(rictus_ollama_build_request("line1\nline2", request, sizeof request) &&
+           strstr(request, "line1\\nline2"), &e, &p);
+    expect(rictus_ollama_build_request("back\\slash", request, sizeof request) &&
+           strstr(request, "back\\\\slash"), &e, &p);
+    expect(!rictus_ollama_extract_response(
+           "{\"response\":\"\"}", response, sizeof response), &e, &p);
 
     ne = 1;
     np = !rictus_ollama_extract_response(NULL, response, sizeof response);
@@ -186,5 +192,5 @@ int rictus_ollama_run_selftests(unsigned int *executed,
     if (passed) *passed = p;
     if (negative_executed) *negative_executed = ne;
     if (negative_passed) *negative_passed = np;
-    return e == p && e >= 7U && ne && np;
+    return e == p && e >= 10U && ne && np;
 }
