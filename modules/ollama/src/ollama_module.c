@@ -10,7 +10,7 @@
 
 #define OLLAMA_VERSION_MAJOR 1U
 #define OLLAMA_VERSION_MINOR 0U
-#define OLLAMA_VERSION_PATCH 0U
+#define OLLAMA_VERSION_PATCH 1U
 
 typedef struct { char *data; size_t used; size_t capacity; } buffer_t;
 static const stnlabz_module_host_t *owner;
@@ -54,16 +54,19 @@ static stnlabz_module_result_t generate(const void *request,size_t request_size,
  curl_easy_setopt(curl,CURLOPT_WRITEFUNCTION,write_cb);
  curl_easy_setopt(curl,CURLOPT_WRITEDATA,&received);
  curl_easy_setopt(curl,CURLOPT_CONNECTTIMEOUT_MS,1000L);
- curl_easy_setopt(curl,CURLOPT_TIMEOUT_MS,8000L);
+ curl_easy_setopt(curl,CURLOPT_TIMEOUT_MS,30000L);
  rc=curl_easy_perform(curl);
  if(rc==CURLE_OK)(void)curl_easy_getinfo(curl,CURLINFO_RESPONSE_CODE,&status);
  curl_slist_free_all(headers);curl_easy_cleanup(curl);
  if(rc!=CURLE_OK||status!=200L||!received.data){
+  fprintf(stderr,"[OLLAMA] request failed curl=%d http=%ld\n",(int)rc,status);
   free(received.data); return STNLABZ_MODULE_ERR_INVALID_STATE;
  }
  if(!rictus_ollama_extract_response(received.data,out->text,sizeof out->text)){
+  fprintf(stderr,"[OLLAMA] response parse failed bytes=%zu\n",received.used);
   free(received.data); return STNLABZ_MODULE_ERR_INVALID_STATE;
  }
+ fprintf(stderr,"[OLLAMA] generation complete bytes=%zu\n",received.used);
  free(received.data);
  if(used)*used=sizeof(*out);
  return STNLABZ_MODULE_OK;
