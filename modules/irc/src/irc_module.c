@@ -21,7 +21,7 @@
 
 #define IRC_VERSION_MAJOR 1U
 #define IRC_VERSION_MINOR 0U
-#define IRC_VERSION_PATCH 5U
+#define IRC_VERSION_PATCH 6U
 #define IRC_OUTBOUND_MAX 32U
 #define IRC_STARTUP_WAIT_SECONDS 30U
 
@@ -307,15 +307,31 @@ static void handle_conversation_message(const char *line)
     memset(&response, 0, sizeof response);
     memcpy(request.prompt, prompt, prompt_length + 1U);
 
+    status("addressed message received; invoking LLM service");
     result = module_host->invoke_service(RICTUS_LLM_GENERATE_SERVICE,
                                          &request, sizeof request,
                                          &response, sizeof response,
                                          &response_used);
-    if (result != STNLABZ_MODULE_OK ||
-        response_used != sizeof response ||
-        !memchr(response.text, '\0', sizeof response.text) ||
-        !response.text[0])
+    if (result != STNLABZ_MODULE_OK) {
+        char detail[128];
+        (void)snprintf(detail, sizeof detail,
+                       "LLM service invocation failed result=%d", (int)result);
+        status(detail);
         return;
+    }
+    if (response_used != sizeof response) {
+        char detail[128];
+        (void)snprintf(detail, sizeof detail,
+                       "LLM response size invalid used=%zu expected=%zu",
+                       response_used, sizeof response);
+        status(detail);
+        return;
+    }
+    if (!memchr(response.text, '\0', sizeof response.text) || !response.text[0]) {
+        status("LLM response invalid or empty");
+        return;
+    }
+    status("LLM response received; queueing IRC reply");
 
     sanitize_irc_text(response.text);
     if (private_message)
