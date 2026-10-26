@@ -4,6 +4,7 @@
 #include "logging.h"
 #include "core_activation.h"
 #include "core_inventory.h"
+#include "core_discovery.h"
 #include "core_hotload.h"
 #include "stnlabz_abi/module_registry.h"
 #include "stnlabz_abi/module_loader.h"
