@@ -19,9 +19,11 @@
 
 #define INTELLIGENCE_VERSION_MAJOR 1U
 #define INTELLIGENCE_VERSION_MINOR 0U
-#define INTELLIGENCE_VERSION_PATCH 2U
+#define INTELLIGENCE_VERSION_PATCH 3U
 #define INTELLIGENCE_RESPONSE_MAX (4U * 1024U * 1024U)
 #define INTELLIGENCE_RECORD_MAX 512U
+#define INTELLIGENCE_FEED_URL "https://api.stn-labz.com/threats"
+#define INTELLIGENCE_INTERVAL_SECONDS 60U
 
 typedef struct {
     char *data;
@@ -32,7 +34,6 @@ typedef struct {
 static pthread_t worker;
 static atomic_int stop_requested;
 static int worker_started;
-static rictus_intelligence_config_t config;
 
 static int bounded_text(const char *text)
 {
@@ -168,7 +169,7 @@ static int fetch_feed(char **json)
     curl = curl_easy_init();
     if (!curl) return 0;
 
-    curl_easy_setopt(curl, CURLOPT_URL, config.url);
+    curl_easy_setopt(curl, CURLOPT_URL, INTELLIGENCE_FEED_URL);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, response_write);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "STN-LABZ-Rictus-Intelligence/1.0");
@@ -306,7 +307,6 @@ static int process_feed(const char *json, char *cursor, size_t cursor_size)
 static void *intelligence_worker(void *unused)
 {
     char cursor[RICTUS_INTELLIGENCE_ID_MAX];
-    int announced = 0;
     (void)unused;
 
     if (!read_cursor(cursor, sizeof cursor)) {
@@ -314,34 +314,21 @@ static void *intelligence_worker(void *unused)
         cursor[0] = '\0';
     }
 
+    (void)log_line("WATCH_STARTED source=%s interval=%u",
+                   INTELLIGENCE_FEED_URL,
+                   INTELLIGENCE_INTERVAL_SECONDS);
+
     while (!atomic_load(&stop_requested)) {
         char *json = NULL;
 
-        if (!config.url[0]) {
-            if (!rictus_intelligence_config_load(
-                    RICTUS_INTELLIGENCE_ENV_PATH, &config)) {
-                if (!announced) {
-                    (void)log_line("CONFIG_UNAVAILABLE path=%s",
-                                   RICTUS_INTELLIGENCE_ENV_PATH);
-                    announced = 1;
-                }
-                if (!sleep_interruptible(30U)) break;
-                continue;
-            }
-
-            announced = 0;
-            (void)log_line("WATCH_STARTED interval=%u",
-                           config.interval_seconds);
-        }
-
         if (!fetch_feed(&json)) {
-            (void)log_line("FETCH_FAILED");
+            (void)log_line("FETCH_FAILED source=%s", INTELLIGENCE_FEED_URL);
         } else {
             (void)process_feed(json, cursor, sizeof cursor);
             free(json);
         }
 
-        if (!sleep_interruptible(config.interval_seconds)) break;
+        if (!sleep_interruptible(INTELLIGENCE_INTERVAL_SECONDS)) break;
     }
 
     (void)log_line("WATCH_STOPPED");
@@ -384,7 +371,6 @@ static stnlabz_module_result_t intelligence_start(const stnlabz_module_host_t *h
         return STNLABZ_MODULE_ERR_START_FAILED;
     }
 
-    memset(&config, 0, sizeof config);
     atomic_store(&stop_requested, 0);
 
     if (pthread_create(&worker, NULL, intelligence_worker, NULL) != 0) {
