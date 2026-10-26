@@ -12,7 +12,7 @@ TARGET := $(BUILD_DIR)/irc.so
 TEST_TARGET := $(BUILD_DIR)/test_irc
 
 PREFIX ?= /opt/rictus
-MODULEDIR ?= $(PREFIX)/modules
+MODULEDIR ?= $(PREFIX)/modules/irc
 
 CPPFLAGS += -I$(INCLUDE_DIR) -I$(ABI_INCLUDE_DIR)
 MODULE_CFLAGS := $(CFLAGS) -fPIC
