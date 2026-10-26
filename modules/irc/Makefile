@@ -41,7 +41,6 @@ test: $(TEST_TARGET)
 
 install: $(TARGET)
 	install -d $(MODULE_BIN_DIR)
-	install -m 0644 module.conf $(MODULE_ROOT)/module.conf
 	install -m 0755 $(TARGET) $(MODULE_BIN_DIR)/irc.so
 
 uninstall:
