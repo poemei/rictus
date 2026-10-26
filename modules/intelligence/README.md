@@ -21,25 +21,15 @@ The watcher is persistent. The newest observed threat ID is stored in:
 
 That cursor prevents the entire feed from replaying after a normal restart.
 
-## Configuration
+## Source
 
-Create:
-
-```text
-/opt/rictus/auth/intelligence/intelligence.env
-```
-
-with:
+This module is Rictus-specific. Its intelligence source is compiled into the module:
 
 ```text
-RICTUS_INTELLIGENCE_URL=https://<deployment>/threats
-RICTUS_INTELLIGENCE_INTERVAL=60
+https://api.stn-labz.com/threats
 ```
 
-`RICTUS_INTELLIGENCE_INTERVAL` is optional and defaults to 60 seconds.
-Accepted values are 15 through 3600 seconds.
-
-The deployment URL is intentionally not hardcoded in source.
+The polling interval is compiled as 60 seconds. No intelligence env file or deployment URL is required.
 
 ## Logging
 
