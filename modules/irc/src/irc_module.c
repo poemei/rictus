@@ -19,7 +19,7 @@
 
 #define IRC_VERSION_MAJOR 1U
 #define IRC_VERSION_MINOR 0U
-#define IRC_VERSION_PATCH 2U
+#define IRC_VERSION_PATCH 3U
 #define IRC_OUTBOUND_MAX 32U
 #define IRC_STARTUP_WAIT_SECONDS 30U
 
@@ -293,17 +293,37 @@ static int handle_line(SSL *ssl, const char *line, int *sasl_seen,
     }
 
     if (!strcmp(command, "CAP")) {
+        /*
+         * Match Digit's proven Libera.Chat negotiation behavior:
+         * capability values may be bare or valued (for example sasl=...),
+         * so treat substring presence in CAP payloads as authoritative.
+         */
         if (strstr(params, " LS ") || strstr(params, " LS :")) {
-            if (rictus_irc_word_present(params, "sasl")) *sasl_seen = 1;
+            if (strstr(params, "sasl")) *sasl_seen = 1;
             if (!cap_is_continuation(params) && !*sasl_requested) {
-                if (!*sasl_seen) return 0;
-                if (!send_line(ssl, "CAP REQ :sasl")) return 0;
+                if (!*sasl_seen) {
+                    status("CAP LS completed without SASL");
+                    return 0;
+                }
+                if (!strstr(params, "account-tag") && !*sasl_requested) {
+                    /*
+                     * account-tag may have appeared in an earlier continuation.
+                     * Request it with SASL exactly as Digit does; the server will
+                     * NAK if unavailable.
+                     */
+                }
+                if (!send_line(ssl, "CAP REQ :sasl account-tag")) return 0;
                 *sasl_requested = 1;
             }
         } else if ((strstr(params, " ACK ") || strstr(params, " ACK :")) &&
-                   rictus_irc_word_present(params, "sasl")) {
+                   strstr(params, "sasl")) {
+            if (!strstr(params, "account-tag")) {
+                status("CAP ACK missing account-tag");
+                return 0;
+            }
             if (!send_line(ssl, "AUTHENTICATE PLAIN")) return 0;
         } else if (strstr(params, " NAK ") || strstr(params, " NAK :")) {
+            status("CAP request rejected");
             return 0;
         }
         return 1;
@@ -318,7 +338,10 @@ static int handle_line(SSL *ssl, const char *line, int *sasl_seen,
         return send_line(ssl, "CAP END");
     }
     if (!strcmp(command, "904") || !strcmp(command, "905") ||
-        !strcmp(command, "906") || !strcmp(command, "907")) return 0;
+        !strcmp(command, "906") || !strcmp(command, "907")) {
+        status("SASL authentication rejected");
+        return 0;
+    }
 
     if (!strcmp(command, "001")) {
         *registered = 1;
