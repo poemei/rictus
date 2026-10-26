@@ -15,6 +15,7 @@ TEST_TARGET := $(BUILD_DIR)/test_intelligence
 
 PREFIX ?= /opt/rictus
 MODULEDIR ?= $(PREFIX)/modules/$(MODULE_NAME)
+STATEDIR ?= /var/lib/rictus
 
 CPPFLAGS += -I$(INCLUDE_DIR) -I$(ABI_INCLUDE_DIR)
 MODULE_CFLAGS := $(CFLAGS) -fPIC
@@ -41,7 +42,7 @@ test: $(TEST_TARGET)
 	./$(TEST_TARGET)
 
 install: $(TARGET)
-	install -d $(MODULEDIR)
+	install -d $(MODULEDIR) $(STATEDIR)
 	install -m 0644 module.conf $(MODULEDIR)/module.conf
 	install -m 0755 $(TARGET) $(MODULEDIR)/$(MODULE_NAME).so
 
