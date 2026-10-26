@@ -28,6 +28,10 @@ int rictus_irc_line_command(const char *line, char *command, size_t command_size
 int rictus_irc_word_present(const char *text, const char *word);
 int rictus_irc_build_plain(const char *account, const char *password,
                            char *output, size_t output_size);
+int rictus_irc_parse_privmsg(const char *line,
+                             char *sender, size_t sender_size,
+                             char *target, size_t target_size,
+                             char *message, size_t message_size);
 int rictus_irc_run_selftests(unsigned int *executed, unsigned int *passed,
                              int *negative_executed, int *negative_passed);
 
