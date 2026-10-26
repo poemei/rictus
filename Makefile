@@ -22,6 +22,12 @@ CPPFLAGS += -Iinclude -I$(ABI_INCLUDE_DIR) -Iinclude/stnlabz_abi
 BUILD_DIR ?= build
 TARGET ?= bin/rictus
 
+PREFIX ?= /opt/rictus
+BINDIR ?= $(PREFIX)/bin
+LOGDIR ?= $(PREFIX)/logs
+MODULEDIR ?= $(PREFIX)/modules
+CONFIGDIR ?= $(PREFIX)/config
+
 CORE_SRCS := $(sort $(wildcard src/*.c))
 ABI_SRCS := $(addprefix $(ABI_SRC_DIR)/,abi.c module.c module_registry.c loader_linux.c module_discovery_linux.c)
 CORE_OBJS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(CORE_SRCS))
@@ -29,7 +35,7 @@ ABI_OBJS := $(patsubst $(ABI_SRC_DIR)/%.c,$(BUILD_DIR)/abi/%.o,$(ABI_SRCS))
 OBJS := $(CORE_OBJS) $(ABI_OBJS)
 DEPS := $(OBJS:.o=.d)
 
-.PHONY: all clean
+.PHONY: all clean install uninstall
 all: $(TARGET)
 
 .PHONY: check-abi
@@ -51,6 +57,13 @@ $(BUILD_DIR)/%.o: src/%.c
 $(BUILD_DIR)/abi/%.o: $(ABI_SRC_DIR)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -c $< -o $@
+
+install: $(TARGET)
+	install -d $(BINDIR) $(LOGDIR) $(MODULEDIR) $(CONFIGDIR)
+	install -m 0755 $(TARGET) $(BINDIR)/rictus
+
+uninstall:
+	rm -f $(BINDIR)/rictus
 
 clean:
 	rm -rf $(BUILD_DIR) $(TARGET)
