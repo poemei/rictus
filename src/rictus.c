@@ -6,13 +6,12 @@
 #include "core_inventory.h"
 #include "core_discovery.h"
 #include "core_hotload.h"
+#include "module_host.h"
 #include "stnlabz_abi/module_registry.h"
 #include "stnlabz_abi/module_loader.h"
 #include "runtime.h"
 
 #define RICTUS_MODULE_DIRECTORY STNLABZ_INSTALL_PATH "/modules"
-
-static const stnlabz_module_host_t module_host = {0};
 
 /* Core identity and operations never depend on any one capability module. */
 int stnlabz_initialize(void)
@@ -23,6 +22,7 @@ int stnlabz_initialize(void)
     stnlabz_hotload_t *watch = NULL;
     const stnlabz_agent_root_t *root;
     int runtime_ok;
+    const stnlabz_module_host_t *module_host = rictus_module_host();
 
     stnlabz_module_registry_init(&modules);
     stnlabz_module_loader_init(&loader);
@@ -46,7 +46,7 @@ int stnlabz_initialize(void)
     stnlabz_runtime_init(&runtime);
 
     watch = stnlabz_hotload_create(RICTUS_MODULE_DIRECTORY, &modules, &loader,
-                                   &module_host);
+                                   module_host);
     if (!watch) {
         (void)stnlabz_log_event("MODULE", "HOTLOAD_FAILED",
                                 "reason=watch_initialization_failed");
