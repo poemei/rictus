@@ -13,8 +13,11 @@
 
 typedef struct {
     char id[STNLABZ_MODULE_ID_MAX];
-    char accepted_sha[65];
+    char active_sha[65];
     char rejected_sha[65];
+    unsigned int major;
+    unsigned int minor;
+    unsigned int patch;
 } observed_t;
 
 struct stnlabz_hotload {
@@ -139,16 +142,49 @@ static int take_loaded_module(stnlabz_module_loader_t *destination,
     return 1;
 }
 
-static void reject(stnlabz_hotload_t *watch, const char *id,
-                   const char *sha, const char *reason)
+static void mark_rejected(stnlabz_hotload_t *watch, const char *id,
+                          const char *sha, const char *reason)
 {
     observed_t *entry = ensure_seen(watch, id);
     if (entry) (void)snprintf(entry->rejected_sha, sizeof entry->rejected_sha, "%s", sha);
     log_result("HOTLOAD_DENIED", id, sha, reason);
 }
 
-static void admit(stnlabz_hotload_t *watch, const char *id,
-                  const char *binary, const char *sha)
+static int version_newer(const observed_t *old,
+                         const stnlabz_module_descriptor_t *candidate)
+{
+    if (candidate->version_major != old->major)
+        return candidate->version_major > old->major;
+    if (candidate->version_minor != old->minor)
+        return candidate->version_minor > old->minor;
+    return candidate->version_patch > old->patch;
+}
+
+static int qualify_isolated(const char *id,
+                            const stnlabz_module_descriptor_t *descriptor,
+                            stnlabz_module_qualification_result_t *qualification)
+{
+    stnlabz_module_registry_t isolated;
+    const stnlabz_module_record_t *record;
+    stnlabz_module_result_t result;
+
+    stnlabz_module_registry_init(&isolated);
+    result = stnlabz_module_registry_discover(&isolated, descriptor);
+    if (result == STNLABZ_MODULE_OK)
+        result = stnlabz_module_registry_verify(&isolated, id);
+    if (result == STNLABZ_MODULE_OK)
+        result = stnlabz_module_registry_qualify(&isolated, id);
+    if (result == STNLABZ_MODULE_OK) {
+        record = stnlabz_module_registry_find(&isolated, id);
+        if (!record) result = STNLABZ_MODULE_ERR_NOT_FOUND;
+        else *qualification = record->qualification;
+    }
+    stnlabz_module_registry_destroy(&isolated);
+    return result == STNLABZ_MODULE_OK;
+}
+
+static void admit_new(stnlabz_hotload_t *watch, const char *id,
+                      const char *binary, const char *sha)
 {
     char staged[1400], staged_sha[65];
     stnlabz_module_loader_t candidate;
@@ -159,7 +195,7 @@ static void admit(stnlabz_hotload_t *watch, const char *id,
     int admitted = 0;
 
     if (!snapshot(binary, staged, sizeof staged, staged_sha)) {
-        reject(watch, id, sha, "candidate_snapshot_failed");
+        mark_rejected(watch, id, sha, "candidate_snapshot_failed");
         return;
     }
     if (strcmp(sha, staged_sha)) {
@@ -171,7 +207,7 @@ static void admit(stnlabz_hotload_t *watch, const char *id,
     stnlabz_module_loader_init(&candidate);
     if (stnlabz_module_loader_load(&candidate, id, staged, &descriptor) !=
         STNLABZ_MODULE_LOADER_OK) {
-        reject(watch, id, sha, "candidate_load_failed");
+        mark_rejected(watch, id, sha, "candidate_load_failed");
         goto done;
     }
 
@@ -181,26 +217,29 @@ static void admit(stnlabz_hotload_t *watch, const char *id,
     if (result == STNLABZ_MODULE_OK)
         result = stnlabz_module_registry_qualify(watch->registry, id);
     if (result != STNLABZ_MODULE_OK) {
-        reject(watch, id, sha, "qualification_failed");
+        mark_rejected(watch, id, sha, "qualification_failed");
         goto rollback;
     }
 
     result = stnlabz_core_activate_qualified(watch->registry, id, watch->host);
     if (result != STNLABZ_MODULE_OK) {
-        reject(watch, id, sha, "activation_failed");
+        mark_rejected(watch, id, sha, "activation_failed");
         goto rollback;
     }
 
     if (!take_loaded_module(watch->loader, &candidate)) {
         (void)stnlabz_core_stop(watch->registry, id);
-        reject(watch, id, sha, "loader_ownership_failed");
+        mark_rejected(watch, id, sha, "loader_ownership_failed");
         goto rollback;
     }
 
     entry = ensure_seen(watch, id);
     if (entry) {
-        (void)snprintf(entry->accepted_sha, sizeof entry->accepted_sha, "%s", sha);
+        (void)snprintf(entry->active_sha, sizeof entry->active_sha, "%s", sha);
         entry->rejected_sha[0] = '\0';
+        entry->major = descriptor->version_major;
+        entry->minor = descriptor->version_minor;
+        entry->patch = descriptor->version_patch;
     }
     admitted = 1;
     log_result("HOTLOAD_ACTIVE", id, sha, "qualification_and_activation_passed");
@@ -217,6 +256,122 @@ done:
     unlink(staged);
 }
 
+static void replace_active(stnlabz_hotload_t *watch, const char *id,
+                           const char *binary, const char *sha,
+                           observed_t *known)
+{
+    char staged[1400], staged_sha[65];
+    stnlabz_module_loader_t candidate;
+    const stnlabz_module_descriptor_t *descriptor = NULL;
+    stnlabz_module_qualification_result_t qualification = {0};
+    const stnlabz_module_record_t *current;
+    stnlabz_module_record_t saved, trial;
+    stnlabz_module_result_t result;
+    size_t i;
+
+    if (!snapshot(binary, staged, sizeof staged, staged_sha)) {
+        mark_rejected(watch, id, sha, "candidate_snapshot_failed");
+        return;
+    }
+    if (strcmp(sha, staged_sha)) {
+        log_result("HOTLOAD_FAILED", id, sha, "candidate_changed_during_snapshot");
+        unlink(staged);
+        return;
+    }
+
+    stnlabz_module_loader_init(&candidate);
+    if (stnlabz_module_loader_load(&candidate, id, staged, &descriptor) !=
+        STNLABZ_MODULE_LOADER_OK) {
+        mark_rejected(watch, id, sha, "candidate_load_failed");
+        goto done;
+    }
+
+    if (!version_newer(known, descriptor)) {
+        mark_rejected(watch, id, sha, "version_not_incremented_or_regressed");
+        goto done;
+    }
+
+    if (!qualify_isolated(id, descriptor, &qualification)) {
+        mark_rejected(watch, id, sha, "qualification_failed");
+        goto done;
+    }
+
+    current = stnlabz_module_registry_find(watch->registry, id);
+    if (!current || current->state != STNLABZ_MODULE_STATE_ACTIVE) {
+        mark_rejected(watch, id, sha, "incumbent_not_active");
+        goto done;
+    }
+    saved = *current;
+
+    if (!stnlabz_core_stop(watch->registry, id)) {
+        mark_rejected(watch, id, sha, "incumbent_stop_failed");
+        goto done;
+    }
+
+    for (i = 0; i < watch->registry->count; ++i) {
+        if (!strcmp(watch->registry->modules[i].descriptor.id, id)) {
+            trial = saved;
+            trial.descriptor = *descriptor;
+            trial.qualification = qualification;
+            trial.state = STNLABZ_MODULE_STATE_QUALIFIED;
+            trial.activation_authorized = 0;
+            watch->registry->modules[i] = trial;
+            break;
+        }
+    }
+
+    result = stnlabz_core_activate_qualified(watch->registry, id, watch->host);
+    if (result == STNLABZ_MODULE_OK) {
+        if (stnlabz_module_loader_unload(watch->loader, id) !=
+            STNLABZ_MODULE_LOADER_OK ||
+            !take_loaded_module(watch->loader, &candidate)) {
+            result = STNLABZ_MODULE_ERR_INVALID_STATE;
+        }
+    }
+
+    if (result == STNLABZ_MODULE_OK) {
+        (void)snprintf(known->active_sha, sizeof known->active_sha, "%s", sha);
+        known->rejected_sha[0] = '\0';
+        known->major = descriptor->version_major;
+        known->minor = descriptor->version_minor;
+        known->patch = descriptor->version_patch;
+        log_result("HOTLOAD_ACTIVE", id, sha, "replacement_active");
+        goto done;
+    }
+
+    for (i = 0; i < watch->registry->count; ++i) {
+        if (!strcmp(watch->registry->modules[i].descriptor.id, id)) {
+            watch->registry->modules[i] = saved;
+            watch->registry->modules[i].state = STNLABZ_MODULE_STATE_STOPPED;
+            watch->registry->modules[i].activation_authorized = 0;
+            break;
+        }
+    }
+    result = stnlabz_core_activate_qualified(watch->registry, id, watch->host);
+    mark_rejected(watch, id, sha,
+                  result == STNLABZ_MODULE_OK ?
+                  "candidate_activation_failed_incumbent_restored" :
+                  "candidate_activation_failed_incumbent_restore_failed");
+
+done:
+    stnlabz_module_loader_unload_all(&candidate);
+    unlink(staged);
+}
+
+static int module_id_from_filename(const char *name, char *id, size_t id_size)
+{
+    size_t length;
+    size_t id_length;
+    if (!name || !id || id_size == 0U) return 0;
+    length = strlen(name);
+    if (length <= 3U || strcmp(name + length - 3U, ".so")) return 0;
+    id_length = length - 3U;
+    if (!id_length || id_length >= id_size) return 0;
+    memcpy(id, name, id_length);
+    id[id_length] = '\0';
+    return 1;
+}
+
 static void scan(stnlabz_hotload_t *watch)
 {
     DIR *directory = opendir(watch->directory);
@@ -224,37 +379,47 @@ static void scan(stnlabz_hotload_t *watch)
     if (!directory) return;
 
     while ((entry = readdir(directory)) != NULL) {
-        char directory_path[1200], binary[1200], sha[65];
+        char id[STNLABZ_MODULE_ID_MAX];
+        char binary[1200], sha[65];
         struct stat status;
+        const stnlabz_module_record_t *record;
         observed_t *known;
-        size_t length;
 
         if (entry->d_name[0] == '.') continue;
-        length = strlen(entry->d_name);
-        if (!length || length >= STNLABZ_MODULE_ID_MAX) continue;
-
-        if (snprintf(directory_path, sizeof directory_path, "%s/%s",
-                     watch->directory, entry->d_name) >= (int)sizeof directory_path)
-            continue;
-        if (stat(directory_path, &status) != 0 || !S_ISDIR(status.st_mode))
-            continue;
-
-        if (snprintf(binary, sizeof binary, "%s/%s/%s.so",
-                     watch->directory, entry->d_name, entry->d_name) >= (int)sizeof binary)
+        if (!module_id_from_filename(entry->d_name, id, sizeof id)) continue;
+        if (snprintf(binary, sizeof binary, "%s/%s",
+                     watch->directory, entry->d_name) >= (int)sizeof binary)
             continue;
         if (stat(binary, &status) != 0 || !S_ISREG(status.st_mode))
             continue;
         if (!digest_file(binary, sha)) continue;
 
-        if (stnlabz_module_registry_find(watch->registry, entry->d_name))
+        record = stnlabz_module_registry_find(watch->registry, id);
+        known = find_seen(watch, id);
+
+        if (!record) {
+            if (known && !strcmp(known->rejected_sha, sha)) continue;
+            log_result("HOTLOAD_DETECTED", id, sha, "new_module");
+            admit_new(watch, id, binary, sha);
+            continue;
+        }
+
+        if (record->state != STNLABZ_MODULE_STATE_ACTIVE) continue;
+        if (!known) {
+            known = ensure_seen(watch, id);
+            if (!known) continue;
+            (void)snprintf(known->active_sha, sizeof known->active_sha, "%s", sha);
+            known->major = record->descriptor.version_major;
+            known->minor = record->descriptor.version_minor;
+            known->patch = record->descriptor.version_patch;
+            continue;
+        }
+
+        if (!strcmp(known->active_sha, sha) || !strcmp(known->rejected_sha, sha))
             continue;
 
-        known = find_seen(watch, entry->d_name);
-        if (known && !strcmp(known->rejected_sha, sha))
-            continue;
-
-        log_result("HOTLOAD_DETECTED", entry->d_name, sha, "new_module");
-        admit(watch, entry->d_name, binary, sha);
+        log_result("HOTLOAD_DETECTED", id, sha, "updated_module");
+        replace_active(watch, id, binary, sha, known);
     }
     closedir(directory);
 }
