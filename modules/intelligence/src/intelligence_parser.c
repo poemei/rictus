@@ -159,11 +159,12 @@ int rictus_intelligence_extract_records(
             if (depth <= 0) return 0;
             --depth;
             if (depth == 0 && object_start) {
-                if (found >= capacity) return 0;
-                if (!parse_record(object_start, (size_t)(p - object_start + 1),
-                                  &records[found]))
-                    return 0;
-                ++found;
+                if (found < capacity) {
+                    if (!parse_record(object_start, (size_t)(p - object_start + 1),
+                                      &records[found]))
+                        return 0;
+                    ++found;
+                }
                 object_start = NULL;
             }
             continue;
