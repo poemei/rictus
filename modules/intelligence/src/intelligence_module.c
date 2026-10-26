@@ -19,7 +19,7 @@
 
 #define INTELLIGENCE_VERSION_MAJOR 1U
 #define INTELLIGENCE_VERSION_MINOR 0U
-#define INTELLIGENCE_VERSION_PATCH 0U
+#define INTELLIGENCE_VERSION_PATCH 1U
 #define INTELLIGENCE_RESPONSE_MAX (4U * 1024U * 1024U)
 #define INTELLIGENCE_RECORD_MAX 512U
 
@@ -361,22 +361,32 @@ static stnlabz_module_result_t intelligence_start(const stnlabz_module_host_t *h
     (void)host;
 
     if (worker_started) return STNLABZ_MODULE_ERR_INVALID_STATE;
-    if (!rictus_intelligence_config_load(RICTUS_INTELLIGENCE_ENV_PATH, &config))
+    if (!rictus_intelligence_config_load(RICTUS_INTELLIGENCE_ENV_PATH, &config)) {
+        fprintf(stderr, "[INTELLIGENCE] config load failed: %s\n",
+                RICTUS_INTELLIGENCE_ENV_PATH);
+        (void)log_line("START_FAILED reason=config_load path=%s",
+                       RICTUS_INTELLIGENCE_ENV_PATH);
         return STNLABZ_MODULE_ERR_START_FAILED;
+    }
 
     if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) {
+        fprintf(stderr, "[INTELLIGENCE] libcurl initialization failed\n");
+        (void)log_line("START_FAILED reason=curl_global_init");
         memset(&config, 0, sizeof config);
         return STNLABZ_MODULE_ERR_START_FAILED;
     }
 
     atomic_store(&stop_requested, 0);
     if (pthread_create(&worker, NULL, intelligence_worker, NULL) != 0) {
+        fprintf(stderr, "[INTELLIGENCE] worker thread creation failed\n");
+        (void)log_line("START_FAILED reason=worker_create");
         curl_global_cleanup();
         memset(&config, 0, sizeof config);
         return STNLABZ_MODULE_ERR_START_FAILED;
     }
 
     worker_started = 1;
+    fprintf(stderr, "[INTELLIGENCE] watcher active\n");
     return STNLABZ_MODULE_OK;
 }
 
