@@ -55,7 +55,9 @@ int rictus_irc_word_present(const char *text, const char *word)
         remaining = strlen(p);
         if (remaining < word_length) return 0;
         if (!ascii_equal_nocase(p, word, word_length)) continue;
-        right_ok = p[word_length] == '\0' || isspace((unsigned char)p[word_length]);
+        right_ok = p[word_length] == '\0' ||
+                   isspace((unsigned char)p[word_length]) ||
+                   p[word_length] == '=';
         if (right_ok) return 1;
     }
     return 0;
@@ -128,7 +130,7 @@ int rictus_irc_run_selftests(unsigned int *executed, unsigned int *passed,
     expect(!rictus_irc_line_command("", command, sizeof command, &params), &e, &p);
     expect(rictus_irc_line_command(":s NOTICE r :hello",
            command, sizeof command, &params) && !strcmp(command, "NOTICE"), &e, &p);
-    expect(rictus_irc_word_present("sasl=PLAIN sasl", "sasl"), &e, &p);
+    expect(rictus_irc_word_present("sasl=PLAIN,EXTERNAL", "sasl"), &e, &p);
 
     neg_e = 1;
     neg_p = !rictus_irc_build_plain(NULL, "p", encoded, sizeof encoded);
