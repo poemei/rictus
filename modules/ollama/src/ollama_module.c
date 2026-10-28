@@ -6,7 +6,6 @@
 #include <string.h>
 #include "stnlabz_abi/module.h"
 #include "rictus_llm.h"
-#include "rictus_transport.h"
 #include "ollama_internal.h"
 
 #define OLLAMA_VERSION_MAJOR 1U
@@ -70,16 +69,10 @@ static int ensure_peer_prefix(const char *prompt,char *text,size_t text_size)
 
 static stnlabz_module_result_t send_peer_action(const char *text)
 {
- rictus_transport_channel_request_t request;
- size_t used=0U,len;
- if(!owner||!owner->invoke_service||!text)return STNLABZ_MODULE_ERR_INVALID_STATE;
- len=strlen(text);
- if(!len||len>=sizeof request.message)return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
- memset(&request,0,sizeof request);
- memcpy(request.message,text,len+1U);
- return owner->invoke_service(RICTUS_TRANSPORT_CHANNEL_SEND_SERVICE,
-                              &request,sizeof request,
-                              NULL,0U,&used);
+ if(!owner||!owner->send_message||!text||!*text)
+  return STNLABZ_MODULE_ERR_INVALID_STATE;
+ return owner->send_message(text)
+  ? STNLABZ_MODULE_OK:STNLABZ_MODULE_ERR_INVALID_STATE;
 }
 
 static size_t write_cb(void *contents,size_t size,size_t nmemb,void *ctx)
@@ -183,8 +176,9 @@ static stnlabz_module_result_t qualify(stnlabz_module_qualification_result_t *q)
 
 static stnlabz_module_result_t start(const stnlabz_module_host_t *h)
 {
- if(!h||!h->register_service||!h->unregister_service||
-    !h->register_command||!h->unregister_command||!h->invoke_service)
+ if(!h||!h->send_message||
+    !h->register_service||!h->unregister_service||
+    !h->register_command||!h->unregister_command)
   return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
  if(curl_global_init(CURL_GLOBAL_DEFAULT)!=CURLE_OK)
   return STNLABZ_MODULE_ERR_START_FAILED;
