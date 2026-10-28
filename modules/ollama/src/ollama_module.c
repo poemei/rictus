@@ -6,46 +6,91 @@
 #include <string.h>
 #include "stnlabz_abi/module.h"
 #include "rictus_llm.h"
+#include "rictus_transport.h"
 #include "ollama_internal.h"
 
 #define OLLAMA_VERSION_MAJOR 1U
 #define OLLAMA_VERSION_MINOR 0U
-#define OLLAMA_VERSION_PATCH 8U
+#define OLLAMA_VERSION_PATCH 9U
 
 typedef struct { char *data; size_t used; size_t capacity; } buffer_t;
 static const stnlabz_module_host_t *owner;
 static int service_registered;
 static int command_registered;
 
-static int extract_ask_target(const char *prompt, char *target, size_t target_size)
+static int valid_peer_char(char c)
 {
- const char *p=prompt; size_t used=0U;
- if(!prompt||!target||target_size<2U)return 0;
+ return (c>='A'&&c<='Z')||(c>='a'&&c<='z')||(c>='0'&&c<='9')||
+        c=='_'||c=='-'||c=='['||c==']'||c=='\\'||c=='`'||c=='^'||
+        c=='{'||c=='}'||c=='|';
+}
+
+static int copy_target_token(const char *p,char *target,size_t target_size)
+{
+ size_t used=0U;
  while(*p==' '||*p=='\t')++p;
- if(strncmp(p,"ask ",4)!=0)return 0;
- p+=4;
- while(*p==' '||*p=='\t')++p;
- while(*p&&*p!=' '&&*p!='\t'&&*p!=':'&&used+1U<target_size)
-  target[used++]=*p++;
+ while(*p&&valid_peer_char(*p)&&used+1U<target_size)target[used++]=*p++;
  if(!used)return 0;
  target[used]='\0';
  return 1;
 }
 
-static int ensure_peer_prefix(const char *prompt, char *text, size_t text_size)
+static int extract_peer_target(const char *prompt,char *target,size_t target_size)
+{
+ const char *p,*to=NULL;
+ if(!prompt||!target||target_size<2U)return 0;
+ p=prompt;
+ while(*p==' '||*p=='\t')++p;
+
+ if(!strncmp(p,"ask ",4))return copy_target_token(p+4,target,target_size);
+ if(!strncmp(p,"tell ",5))return copy_target_token(p+5,target,target_size);
+
+ if(!strncmp(p,"say ",4)){
+  const char *scan=p+4;
+  while((scan=strstr(scan," to "))!=NULL){to=scan+4;scan+=4;}
+  if(to)return copy_target_token(to,target,target_size);
+ }
+ return 0;
+}
+
+static int ensure_peer_prefix(const char *prompt,char *text,size_t text_size)
 {
  char target[128],prefixed[sizeof(((rictus_llm_response_t *)0)->text)];
  size_t target_len,text_len;
- if(!extract_ask_target(prompt,target,sizeof target))return 1;
+ if(!extract_peer_target(prompt,target,sizeof target))return 1;
  target_len=strlen(target);text_len=strlen(text);
- if(text_len>target_len&&
-    !strncmp(text,target,target_len)&&text[target_len]==':')
+ if(text_len>target_len&&!strncmp(text,target,target_len)&&text[target_len]==':')
   return 1;
  if(snprintf(prefixed,sizeof prefixed,"%s: %s",target,text)>=(int)sizeof prefixed)
   return 0;
  if(strlen(prefixed)+1U>text_size)return 0;
  memcpy(text,prefixed,strlen(prefixed)+1U);
  return 1;
+}
+
+static int addressed_peer_reply(const char *text)
+{
+ const char *p=text;
+ size_t length=0U;
+ if(!text||!*text)return 0;
+ while(*p&&valid_peer_char(*p)&&length<RICTUS_TRANSPORT_TARGET_MAX-1U){
+  ++p;++length;
+ }
+ return length>0U&&*p==':';
+}
+
+static stnlabz_module_result_t send_peer_action(const char *text)
+{
+ rictus_transport_channel_request_t request;
+ size_t used=0U,len;
+ if(!owner||!owner->invoke_service||!text)return STNLABZ_MODULE_ERR_INVALID_STATE;
+ len=strlen(text);
+ if(!len||len>=sizeof request.message)return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
+ memset(&request,0,sizeof request);
+ memcpy(request.message,text,len+1U);
+ return owner->invoke_service(RICTUS_TRANSPORT_CHANNEL_SEND_SERVICE,
+                              &request,sizeof request,
+                              NULL,0U,&used);
 }
 
 static size_t write_cb(void *contents,size_t size,size_t nmemb,void *ctx)
@@ -128,6 +173,8 @@ static stnlabz_module_result_t chat_controller(
  if(used!=sizeof out)return STNLABZ_MODULE_ERR_INVALID_STATE;
  if(!ensure_peer_prefix(in.prompt,out.text,sizeof out.text))
   return STNLABZ_MODULE_ERR_INVALID_STATE;
+ if(addressed_peer_reply(out.text))
+  return send_peer_action(out.text);
  return reply(reply_context,out.text)
   ? STNLABZ_MODULE_OK:STNLABZ_MODULE_ERR_INVALID_STATE;
 }
@@ -146,7 +193,7 @@ static stnlabz_module_result_t qualify(stnlabz_module_qualification_result_t *q)
 static stnlabz_module_result_t start(const stnlabz_module_host_t *h)
 {
  if(!h||!h->register_service||!h->unregister_service||
-    !h->register_command||!h->unregister_command)
+    !h->register_command||!h->unregister_command||!h->invoke_service)
   return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
  if(curl_global_init(CURL_GLOBAL_DEFAULT)!=CURLE_OK)
   return STNLABZ_MODULE_ERR_START_FAILED;
