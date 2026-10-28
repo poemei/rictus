@@ -40,7 +40,7 @@ Source correlation is performed at diagnosis time against the current Rictus sou
 
 Default source root:
 
-`/home/stnchain/rictus`
+`/home/<source_user>/rictus`
 
 Optional override:
 
