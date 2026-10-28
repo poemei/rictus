@@ -76,3 +76,26 @@ Example expected behavior:
 `ask digicat how she is` -> `digicat: how are you?`
 
 Core routing, IRC transport, model selection and identity anchoring are unchanged.
+
+
+## v1.0.8 — Preserve ask target prefix (2026-10-28)
+
+For peer-directed `ask` requests, the module preserves the generated question
+and restores the addressed nickname prefix when the model omits it.
+
+Example:
+`ask digicat how she is` -> `digicat: how are you?`
+
+## v1.0.9 — Peer action delivery independent of conversation origin (2026-10-28)
+
+Peer-directed conversational requests now execute as outbound agent actions
+instead of ordinary replies to the originating conversation. Rictus recognizes
+the currently proven `say ... to <nick>`, `tell <nick> ...`, and
+`ask <nick> ...` forms, preserves the addressed nickname, and sends the result
+through the Core host message boundary.
+
+This means a peer action requested in a private conversation is delivered to the
+shared message transport rather than echoed back into that private conversation.
+Ordinary conversational responses remain replies to their original source.
+
+Core routing and IRC transport behavior are unchanged.
