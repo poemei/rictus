@@ -56,14 +56,26 @@ The installed hotload artifact is:
 Rictus watches `/opt/rictus/modules/`. A new or changed `/opt/rictus/modules/<module>/<module>.so` is snapshotted, loaded, verified, and qualified. A passing candidate is activated. A failing candidate remains inert while Rictus continues running; the same failed bytes are not retried until the file changes.
 
 
-## Conversational handoff
+## Conversational handoff — Core Router
 
-IRC remains the transport owner. When the `rictus.llm.generate` service is
-available, the IRC module forwards only:
+IRC remains the transport/session owner. Incoming private messages and channel
+messages addressed to Rictus are passed unchanged (after protocol-level address
+extraction) to the Core-owned `rictus.router.dispatch` service. IRC does not
+select the destination capability, invoke Ollama, or interpret content.
 
-- private messages sent directly to Rictus
-- channel messages explicitly addressed as `rictus: ...`, `rictus, ...`, or
-  `rictus ...`
+Core resolves explicit `/route arguments` destinations against command
+controllers registered by active modules. Ordinary text resolves to the
+registered `chat` controller. Each controller owns its internal operations.
+The controller reply returns through Core to the originating IRC channel or
+private sender. Unregistered routes and failed controllers are logged as route
+errors; IRC does not fabricate a response.
 
-Ordinary channel traffic is not sent to the LLM service. Generated CR/LF
-characters are flattened before an IRC reply is queued.
+## v1.0.7 — Core Router handoff (2026-10-28)
+
+Removed direct IRC-to-Ollama dispatch. Addressed inbound text now enters the
+Core Router and is dispatched to registered module controllers. Existing IRC
+transport, SASL, TLS, outbound queue, channel addressing and reply sanitization
+remain unchanged.
+
+Build, qualification, installed-artifact verification and live IRC acceptance
+remain operator-controlled.
