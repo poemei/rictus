@@ -83,9 +83,7 @@ stnlabz_module_result_t stnlabz_core_activate(stnlabz_module_registry_t *registr
         /* The shared ABI owns the start->active transition and failure handling.
            Its combined helper repeats authorization only AFTER the explicit gate. */
         rictus_module_host_begin_registration(module_id);
-        rictus_module_host_begin_registration(module_id);
-    rc = stnlabz_module_abi_authorize_and_activate(registry, module_id, host);
-    rictus_module_host_end_registration();
+        rc = stnlabz_module_abi_authorize_and_activate(registry, module_id, host);
         rictus_module_host_end_registration();
     }
     if (!audit(rc == STNLABZ_MODULE_OK ? "HOTLOAD_ACTIVE" : "ACTIVATE_REJECT",
@@ -110,7 +108,9 @@ stnlabz_module_result_t stnlabz_core_activate_qualified(
         record->state != STNLABZ_MODULE_STATE_STOPPED)
         return STNLABZ_MODULE_ERR_NOT_QUALIFIED;
 
+    rictus_module_host_begin_registration(module_id);
     rc = stnlabz_module_abi_authorize_and_activate(registry, module_id, host);
+    rictus_module_host_end_registration();
     if (!audit(rc == STNLABZ_MODULE_OK ? "AUTO_ACTIVE" : "AUTO_ACTIVATION_FAILED",
                module_id, rc, stnlabz_module_registry_find(registry, module_id)))
         return STNLABZ_MODULE_ERR_INVALID_STATE;
