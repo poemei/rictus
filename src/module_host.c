@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "module_host.h"
+#include "core_diagnostics.h"
 #include "rictus_transport.h"
 #include "rictus_route.h"
 
@@ -10,6 +11,7 @@
 
 typedef struct {
     char name[STNLABZ_MODULE_SERVICE_NAME_MAX];
+    char owner[STNLABZ_MODULE_ID_MAX];
     stnlabz_module_service_handler_fn handler;
     void *context;
     unsigned int in_flight;
@@ -18,6 +20,7 @@ typedef struct {
 
 typedef struct {
     char name[STNLABZ_MODULE_COMMAND_NAME_MAX];
+    char owner[STNLABZ_MODULE_ID_MAX];
     stnlabz_module_command_handler_fn handler;
     void *context;
     unsigned int in_flight;
@@ -28,6 +31,7 @@ static rictus_service_entry_t services[RICTUS_HOST_SERVICE_MAX];
 static rictus_command_entry_t commands[RICTUS_HOST_COMMAND_MAX];
 static atomic_flag service_lock = ATOMIC_FLAG_INIT;
 static atomic_flag command_lock = ATOMIC_FLAG_INIT;
+static char registering_module[STNLABZ_MODULE_ID_MAX];
 
 typedef struct rictus_service_frame {
     const rictus_service_entry_t *entry;
@@ -76,6 +80,21 @@ static void unlock(atomic_flag *flag)
     atomic_flag_clear_explicit(flag, memory_order_release);
 }
 
+void rictus_module_host_begin_registration(const char *module_id)
+{
+    size_t length;
+    registering_module[0] = '\0';
+    if (!module_id) return;
+    length = bounded_length(module_id, sizeof registering_module);
+    if (!length || length >= sizeof registering_module) return;
+    memcpy(registering_module, module_id, length + 1U);
+}
+
+void rictus_module_host_end_registration(void)
+{
+    registering_module[0] = '\0';
+}
+
 static int register_service(const char *name,
                             stnlabz_module_service_handler_fn handler,
                             void *context)
@@ -103,6 +122,7 @@ static int register_service(const char *name,
     }
 
     memcpy(services[free_slot].name, name, length + 1U);
+    if (registering_module[0]) memcpy(services[free_slot].owner, registering_module, strlen(registering_module) + 1U);
     services[free_slot].handler = handler;
     services[free_slot].context = context;
     unlock(&service_lock);
@@ -182,7 +202,7 @@ static stnlabz_module_result_t invoke_service(
     if (!handler && !strcmp(name, RICTUS_ROUTER_DISPATCH_SERVICE))
         return route_dispatch_service(request, request_size, response,
                                       response_size, response_used, NULL);
-    if (!handler) return STNLABZ_MODULE_ERR_NOT_FOUND;
+    if (!handler) { rictus_diag_service(name, "core/unknown", STNLABZ_MODULE_ERR_NOT_FOUND); return STNLABZ_MODULE_ERR_NOT_FOUND; }
 
     {
         rictus_service_frame_t frame = {entry, current_service_frame};
@@ -195,6 +215,7 @@ static stnlabz_module_result_t invoke_service(
     lock(&service_lock);
     entry->in_flight--;
     unlock(&service_lock);
+    rictus_diag_service(name, entry->owner, result);
     return result;
 }
 
@@ -263,6 +284,7 @@ static int register_command(const char *name,
     }
 
     memcpy(commands[free_slot].name, name, length + 1U);
+    if (registering_module[0]) memcpy(commands[free_slot].owner, registering_module, strlen(registering_module) + 1U);
     commands[free_slot].handler = handler;
     commands[free_slot].context = context;
     unlock(&command_lock);
@@ -356,7 +378,7 @@ static stnlabz_module_result_t dispatch_command(
     }
     unlock(&command_lock);
 
-    if (!handler) return STNLABZ_MODULE_ERR_NOT_FOUND;
+    if (!handler) { rictus_diag_command(cmd->name, "core/unknown", STNLABZ_MODULE_ERR_NOT_FOUND, 0); return STNLABZ_MODULE_ERR_NOT_FOUND; }
     {
         rictus_command_frame_t frame = {entry, current_command_frame};
         current_command_frame = &frame;
@@ -369,6 +391,7 @@ static stnlabz_module_result_t dispatch_command(
 
     if (result == STNLABZ_MODULE_OK && response_used)
         *response_used = sizeof *out;
+    rictus_diag_command(cmd->name, entry->owner, result, out->replied);
     return result;
 }
 
@@ -392,6 +415,18 @@ static stnlabz_module_result_t route_dispatch_service(
         !in->text[0] || !response || response_size < sizeof(rictus_route_reply_t))
         return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
 
+    if (!strcmp(in->text, "diagnose my last request")) {
+        char diagnostic[RICTUS_ROUTE_REPLY_MAX];
+        rictus_route_reply_t *out = response;
+        if (!rictus_diag_render(diagnostic, sizeof diagnostic)) return STNLABZ_MODULE_ERR_INVALID_STATE;
+        memset(out, 0, sizeof *out);
+        memcpy(out->text, diagnostic, strlen(diagnostic) + 1U);
+        out->replied = 1;
+        if (response_used) *response_used = sizeof *out;
+        return STNLABZ_MODULE_OK;
+    }
+
+    rictus_diag_begin(in->sender, in->account, in->text);
     memset(&command, 0, sizeof command);
     memcpy(command.sender, in->sender, sizeof command.sender);
     memcpy(command.account, in->account, sizeof command.account);
@@ -411,6 +446,7 @@ static stnlabz_module_result_t route_dispatch_service(
         memcpy(command.name, "chat", sizeof "chat");
     }
 
+    rictus_diag_route(command.name);
     arg_len = bounded_length(cursor, sizeof command.arguments);
     if (arg_len >= sizeof command.arguments)
         return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
