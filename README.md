@@ -42,3 +42,14 @@ locations are repo-relative, for example:
 Source correlation follows current registration symbols to their handler
 definitions when provable. No static module-to-file map and no SQLite persistence
 are used.
+
+
+## Documentation continuity
+
+Project continuity is maintained under [docs/](docs/):
+
+- [Changelog](docs/CHANGELOG.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Module and runtime map](docs/MODULES.md)
+
+Source and live runtime evidence remain authoritative when documentation and implementation differ.
