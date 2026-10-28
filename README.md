@@ -19,3 +19,26 @@ Rictus is a distinct agent derived from Digit's Core foundation. In their agent 
 
 
 Discussion, research, and speculative planning are not authorization to implement. Human direction determines requirements, changes, validation, and acceptance. Proposed designs should be checked against previously established decisions and revalidated before implementation.
+
+
+## Core DSD diagnostics
+
+Rictus Core retains a bounded in-memory last-request diagnostic trace per sender.
+The trace follows the actual runtime path through Core routing, registered command
+ownership, nested service invocations, result codes, and reply/action disposition.
+
+The natural request `diagnose my last request` is handled by Core before a new
+trace is started, so the diagnostic request does not overwrite the request being
+diagnosed.
+
+Command and service ownership is captured from the module activation/registration
+path without changing ABI 1.5. Source correlation is performed at diagnosis time
+against the current Rictus source tree. The default source root is
+`/home/stnchain/rictus`; `RICTUS_SOURCE_ROOT` may override it. Reported code
+locations are repo-relative, for example:
+
+`modules/ollama/src/ollama_module.c:143`
+
+Source correlation follows current registration symbols to their handler
+definitions when provable. No static module-to-file map and no SQLite persistence
+are used.
