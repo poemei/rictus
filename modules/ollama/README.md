@@ -50,3 +50,16 @@ Revision advanced from 1.0.4 to 1.0.5 so the identity-anchoring binary is a
 strictly newer hotload candidate than the previously active Ollama revision.
 No functional behavior changed in this bump beyond the already-implemented
 Rictus identity anchoring.
+
+
+## v1.0.6 — Direct IRC participant addressing (2026-10-28)
+
+Rictus's Ollama system instruction now directs conversational requests aimed at
+another IRC participant to address that participant using the exact IRC nickname
+followed by a colon. Requests such as `say hi to digicat` are therefore expected
+to produce a reply beginning with `digicat:` rather than narrating that a message
+will be sent.
+
+Core routing, IRC transport, model selection, generation limits and identity
+anchoring are unchanged. A source-level regression check verifies that the
+direct-address instruction remains present in generated Ollama requests.
