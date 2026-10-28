@@ -3,6 +3,7 @@
 #include "core_activation.h"
 #include "abi.h" /* Shared STN-LABZ ABI lifecycle declarations. */
 #include "logging.h"
+#include "module_host.h"
 
 static int audit(const char *event, const char *id,
                  stnlabz_module_result_t result,
@@ -81,7 +82,11 @@ stnlabz_module_result_t stnlabz_core_activate(stnlabz_module_registry_t *registr
     else {
         /* The shared ABI owns the start->active transition and failure handling.
            Its combined helper repeats authorization only AFTER the explicit gate. */
-        rc = stnlabz_module_abi_authorize_and_activate(registry, module_id, host);
+        rictus_module_host_begin_registration(module_id);
+        rictus_module_host_begin_registration(module_id);
+    rc = stnlabz_module_abi_authorize_and_activate(registry, module_id, host);
+    rictus_module_host_end_registration();
+        rictus_module_host_end_registration();
     }
     if (!audit(rc == STNLABZ_MODULE_OK ? "HOTLOAD_ACTIVE" : "ACTIVATE_REJECT",
                module_id, rc, stnlabz_module_registry_find(registry, module_id)))
