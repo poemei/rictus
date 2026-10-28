@@ -21,7 +21,7 @@
 
 #define IRC_VERSION_MAJOR 1U
 #define IRC_VERSION_MINOR 0U
-#define IRC_VERSION_PATCH 7U
+#define IRC_VERSION_PATCH 8U
 #define IRC_OUTBOUND_MAX 32U
 #define IRC_STARTUP_WAIT_SECONDS 30U
 
@@ -551,14 +551,20 @@ static int run_session(void)
 
         if (!flush_outbound(ssl)) goto done;
 
-        polled = poll(&pollfd, 1, 1000);
-        if (polled < 0) {
-            if (errno == EINTR) continue;
-            goto done;
+        /* OpenSSL can retain decrypted IRC bytes after the socket itself
+         * becomes idle. Process those bytes before waiting on poll(), matching
+         * Digit's proven transport behavior. */
+        if (SSL_pending(ssl) == 0) {
+            pollfd.revents = 0;
+            polled = poll(&pollfd, 1, 1000);
+            if (polled < 0) {
+                if (errno == EINTR) continue;
+                goto done;
+            }
+            if (polled == 0) continue;
+            if (pollfd.revents & (POLLERR | POLLHUP | POLLNVAL)) goto done;
+            if (!(pollfd.revents & POLLIN)) continue;
         }
-        if (polled == 0) continue;
-        if (pollfd.revents & (POLLERR | POLLHUP | POLLNVAL)) goto done;
-        if (!(pollfd.revents & POLLIN)) continue;
 
         if (receive_used >= sizeof receive_buffer - 1U) goto done;
         received = SSL_read(ssl, receive_buffer + receive_used,
