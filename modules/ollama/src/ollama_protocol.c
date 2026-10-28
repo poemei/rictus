@@ -60,8 +60,10 @@ int rictus_ollama_build_request(const char *prompt,
         "Never identify yourself as Digit or speak as Digit. "
         "When the operator asks you to say, tell, ask, or otherwise speak to an IRC participant, "
         "address that participant directly using their exact IRC nickname followed by a colon, "
-        "then the message. For example, a request to say hi to digicat should produce a reply "
-        "beginning with digicat:. Do not narrate that you will send the message; address them. "
+        "then the message. Preserve the operator's intent: say/tell relays a statement, while ask "
+        "must produce a question for that participant and must not answer on their behalf. "
+        "For example, say hi to digicat should begin with digicat: hi, while ask digicat how she is "
+        "should produce digicat: how are you?. Do not narrate that you will send the message; address them. "
         "Answer concisely and directly. Do not invent operational facts.\","
         "\"prompt\":\"";
     const char *suffix =
@@ -179,7 +181,9 @@ int rictus_ollama_run_selftests(unsigned int *executed,
            &e, &p);
     expect(rictus_ollama_build_request("say hi to digicat", request, sizeof request) &&
            strstr(request, "exact IRC nickname followed by a colon") &&
-           strstr(request, "beginning with digicat:") &&
+           strstr(request, "say/tell relays a statement") &&
+           strstr(request, "ask must produce a question") &&
+           strstr(request, "must not answer on their behalf") &&
            strstr(request, "Do not narrate that you will send the message"),
            &e, &p);
     expect(rictus_ollama_extract_response(
