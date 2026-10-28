@@ -42,3 +42,11 @@ anchors are present in generated Ollama requests.
 
 Routing, IRC transport, model selection, temperature and generation limits are
 unchanged.
+
+
+## v1.0.5 — Identity-fix revision bump (2026-10-28)
+
+Revision advanced from 1.0.4 to 1.0.5 so the identity-anchoring binary is a
+strictly newer hotload candidate than the previously active Ollama revision.
+No functional behavior changed in this bump beyond the already-implemented
+Rictus identity anchoring.
