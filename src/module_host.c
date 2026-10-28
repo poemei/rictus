@@ -3,6 +3,7 @@
 
 #include "module_host.h"
 #include "rictus_transport.h"
+#include "rictus_route.h"
 
 #define RICTUS_HOST_SERVICE_MAX 32U
 #define RICTUS_HOST_COMMAND_MAX 32U
@@ -19,12 +20,43 @@ typedef struct {
     char name[STNLABZ_MODULE_COMMAND_NAME_MAX];
     stnlabz_module_command_handler_fn handler;
     void *context;
+    unsigned int in_flight;
+    int withdrawing;
 } rictus_command_entry_t;
 
 static rictus_service_entry_t services[RICTUS_HOST_SERVICE_MAX];
 static rictus_command_entry_t commands[RICTUS_HOST_COMMAND_MAX];
 static atomic_flag service_lock = ATOMIC_FLAG_INIT;
 static atomic_flag command_lock = ATOMIC_FLAG_INIT;
+
+typedef struct rictus_service_frame {
+    const rictus_service_entry_t *entry;
+    struct rictus_service_frame *previous;
+} rictus_service_frame_t;
+
+typedef struct rictus_command_frame {
+    const rictus_command_entry_t *entry;
+    struct rictus_command_frame *previous;
+} rictus_command_frame_t;
+
+static _Thread_local rictus_service_frame_t *current_service_frame;
+static _Thread_local rictus_command_frame_t *current_command_frame;
+
+static int on_service_stack(const rictus_service_entry_t *entry)
+{
+    const rictus_service_frame_t *frame;
+    for (frame = current_service_frame; frame; frame = frame->previous)
+        if (frame->entry == entry) return 1;
+    return 0;
+}
+
+static int on_command_stack(const rictus_command_entry_t *entry)
+{
+    const rictus_command_frame_t *frame;
+    for (frame = current_command_frame; frame; frame = frame->previous)
+        if (frame->entry == entry) return 1;
+    return 0;
+}
 
 static size_t bounded_length(const char *text, size_t maximum)
 {
@@ -52,7 +84,7 @@ static int register_service(const char *name,
     size_t free_slot = RICTUS_HOST_SERVICE_MAX;
     size_t length;
 
-    if (!name || !handler) return 0;
+    if (!name || !handler || !strcmp(name, RICTUS_ROUTER_DISPATCH_SERVICE)) return 0;
     length = bounded_length(name, STNLABZ_MODULE_SERVICE_NAME_MAX);
     if (!length || length >= STNLABZ_MODULE_SERVICE_NAME_MAX) return 0;
 
@@ -89,6 +121,10 @@ static int unregister_service(const char *name, void *context)
             !services[i].withdrawing &&
             services[i].context == context &&
             !strcmp(services[i].name, name)) {
+            if (on_service_stack(&services[i])) {
+                unlock(&service_lock);
+                return 0;
+            }
             services[i].withdrawing = 1;
             entry = &services[i];
             break;
@@ -107,6 +143,9 @@ static int unregister_service(const char *name, void *context)
         unlock(&service_lock);
     }
 }
+
+static stnlabz_module_result_t route_dispatch_service(
+    const void *, size_t, void *, size_t, size_t *, void *);
 
 static stnlabz_module_result_t invoke_service(
     const char *name,
@@ -140,10 +179,18 @@ static stnlabz_module_result_t invoke_service(
     }
     unlock(&service_lock);
 
+    if (!handler && !strcmp(name, RICTUS_ROUTER_DISPATCH_SERVICE))
+        return route_dispatch_service(request, request_size, response,
+                                      response_size, response_used, NULL);
     if (!handler) return STNLABZ_MODULE_ERR_NOT_FOUND;
 
-    result = handler(request, request_size, response, response_size,
-                     response_used, context);
+    {
+        rictus_service_frame_t frame = {entry, current_service_frame};
+        current_service_frame = &frame;
+        result = handler(request, request_size, response, response_size,
+                         response_used, context);
+        current_service_frame = frame.previous;
+    }
 
     lock(&service_lock);
     entry->in_flight--;
@@ -224,21 +271,153 @@ static int register_command(const char *name,
 
 static int unregister_command(const char *name, void *context)
 {
+    rictus_command_entry_t *entry = NULL;
     size_t i;
 
     if (!name) return 0;
     lock(&command_lock);
     for (i = 0; i < RICTUS_HOST_COMMAND_MAX; ++i) {
         if (commands[i].handler &&
+            !commands[i].withdrawing &&
             commands[i].context == context &&
             !strcmp(commands[i].name, name)) {
-            memset(&commands[i], 0, sizeof commands[i]);
-            unlock(&command_lock);
-            return 1;
+            if (on_command_stack(&commands[i])) {
+                unlock(&command_lock);
+                return 0;
+            }
+            commands[i].withdrawing = 1;
+            entry = &commands[i];
+            break;
         }
     }
     unlock(&command_lock);
-    return 0;
+    if (!entry) return 0;
+
+    for (;;) {
+        lock(&command_lock);
+        if (!entry->in_flight) {
+            memset(entry, 0, sizeof *entry);
+            unlock(&command_lock);
+            return 1;
+        }
+        unlock(&command_lock);
+    }
+}
+
+/* Core performs only named dispatch. Controller handlers own internal routing. */
+static int rictus_route_capture(void *ctx, const char *message)
+{
+    rictus_route_reply_t *out = ctx;
+    size_t len;
+    if (!out || !message || out->replied) return 0;
+    len = bounded_length(message, sizeof out->text);
+    if (!len || len >= sizeof out->text) return 0;
+    memcpy(out->text, message, len + 1U);
+    out->replied = 1;
+    return 1;
+}
+
+static stnlabz_module_result_t dispatch_command(
+    const void *request, size_t request_size,
+    void *response, size_t response_size, size_t *response_used,
+    void *context)
+{
+    const stnlabz_module_command_t *cmd = request;
+    rictus_route_reply_t *out = response;
+    stnlabz_module_command_handler_fn handler = NULL;
+    rictus_command_entry_t *entry = NULL;
+    stnlabz_module_result_t result;
+    void *handler_context = NULL;
+    size_t i;
+    (void)context;
+
+    if (response_used) *response_used = 0U;
+    if (!cmd || request_size != sizeof *cmd || !out ||
+        response_size < sizeof *out ||
+        !memchr(cmd->sender, 0, sizeof cmd->sender) ||
+        !memchr(cmd->account, 0, sizeof cmd->account) ||
+        !memchr(cmd->name, 0, sizeof cmd->name) ||
+        !memchr(cmd->arguments, 0, sizeof cmd->arguments) ||
+        !cmd->name[0])
+        return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
+
+    memset(out, 0, sizeof *out);
+    lock(&command_lock);
+    for (i = 0; i < RICTUS_HOST_COMMAND_MAX; ++i) {
+        if (commands[i].handler &&
+            !commands[i].withdrawing &&
+            !strcmp(commands[i].name, cmd->name)) {
+            entry = &commands[i];
+            entry->in_flight++;
+            handler = entry->handler;
+            handler_context = entry->context;
+            break;
+        }
+    }
+    unlock(&command_lock);
+
+    if (!handler) return STNLABZ_MODULE_ERR_NOT_FOUND;
+    {
+        rictus_command_frame_t frame = {entry, current_command_frame};
+        current_command_frame = &frame;
+        result = handler(cmd, rictus_route_capture, out, handler_context);
+        current_command_frame = frame.previous;
+    }
+    lock(&command_lock);
+    entry->in_flight--;
+    unlock(&command_lock);
+
+    if (result == STNLABZ_MODULE_OK && response_used)
+        *response_used = sizeof *out;
+    return result;
+}
+
+/* Core-owned transport-neutral ingress; modules only register command controllers. */
+static stnlabz_module_result_t route_dispatch_service(
+    const void *request, size_t request_size,
+    void *response, size_t response_size, size_t *response_used,
+    void *context)
+{
+    const rictus_route_request_t *in = request;
+    stnlabz_module_command_t command;
+    const char *cursor, *end;
+    size_t name_len, arg_len;
+    (void)context;
+
+    if (response_used) *response_used = 0U;
+    if (!in || request_size != sizeof *in ||
+        !memchr(in->sender, 0, sizeof in->sender) ||
+        !memchr(in->account, 0, sizeof in->account) ||
+        !memchr(in->text, 0, sizeof in->text) ||
+        !in->text[0] || !response || response_size < sizeof(rictus_route_reply_t))
+        return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
+
+    memset(&command, 0, sizeof command);
+    memcpy(command.sender, in->sender, sizeof command.sender);
+    memcpy(command.account, in->account, sizeof command.account);
+
+    cursor = in->text;
+    if (*cursor == '/') {
+        ++cursor;
+        end = cursor;
+        while (*end && *end != ' ' && *end != '\t') ++end;
+        name_len = (size_t)(end - cursor);
+        if (!name_len || name_len >= sizeof command.name)
+            return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
+        memcpy(command.name, cursor, name_len);
+        while (*end == ' ' || *end == '\t') ++end;
+        cursor = end;
+    } else {
+        memcpy(command.name, "chat", sizeof "chat");
+    }
+
+    arg_len = bounded_length(cursor, sizeof command.arguments);
+    if (arg_len >= sizeof command.arguments)
+        return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
+    memcpy(command.arguments, cursor, arg_len + 1U);
+
+    return dispatch_command(&command, sizeof command,
+                            response, response_size, response_used, NULL);
 }
 
 static const stnlabz_module_host_t host = {
