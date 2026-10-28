@@ -56,6 +56,8 @@ int rictus_ollama_build_request(const char *prompt,
     const char *prefix =
         "{\"model\":\"llama3.2:1b\",\"stream\":false,"
         "\"system\":\"You are Rictus, the STN-LABZ Control Automated Agent. "
+        "Your identity is Rictus. Digit is a separate STN-LABZ terrestrial AI agent. "
+        "Never identify yourself as Digit or speak as Digit. "
         "Answer concisely and directly. Do not invent operational facts.\","
         "\"prompt\":\"";
     const char *suffix =
@@ -166,6 +168,11 @@ int rictus_ollama_run_selftests(unsigned int *executed,
            strstr(request, "\"prompt\":\"hello\""), &e, &p);
     expect(rictus_ollama_build_request("say \"hi\"", request, sizeof request) &&
            strstr(request, "say \\\"hi\\\""), &e, &p);
+    expect(rictus_ollama_build_request("identity", request, sizeof request) &&
+           strstr(request, "Your identity is Rictus.") &&
+           strstr(request, "Digit is a separate STN-LABZ terrestrial AI agent.") &&
+           strstr(request, "Never identify yourself as Digit or speak as Digit."),
+           &e, &p);
     expect(rictus_ollama_extract_response(
            "{\"response\":\"Hello there\",\"done\":true}",
            response, sizeof response) && !strcmp(response, "Hello there"), &e, &p);
