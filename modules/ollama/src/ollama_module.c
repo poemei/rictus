@@ -10,12 +10,43 @@
 
 #define OLLAMA_VERSION_MAJOR 1U
 #define OLLAMA_VERSION_MINOR 0U
-#define OLLAMA_VERSION_PATCH 7U
+#define OLLAMA_VERSION_PATCH 8U
 
 typedef struct { char *data; size_t used; size_t capacity; } buffer_t;
 static const stnlabz_module_host_t *owner;
 static int service_registered;
 static int command_registered;
+
+static int extract_ask_target(const char *prompt, char *target, size_t target_size)
+{
+ const char *p=prompt; size_t used=0U;
+ if(!prompt||!target||target_size<2U)return 0;
+ while(*p==' '||*p=='\t')++p;
+ if(strncmp(p,"ask ",4)!=0)return 0;
+ p+=4;
+ while(*p==' '||*p=='\t')++p;
+ while(*p&&*p!=' '&&*p!='\t'&&*p!=':'&&used+1U<target_size)
+  target[used++]=*p++;
+ if(!used)return 0;
+ target[used]='\0';
+ return 1;
+}
+
+static int ensure_peer_prefix(const char *prompt, char *text, size_t text_size)
+{
+ char target[128],prefixed[sizeof(((rictus_llm_response_t *)0)->text)];
+ size_t target_len,text_len;
+ if(!extract_ask_target(prompt,target,sizeof target))return 1;
+ target_len=strlen(target);text_len=strlen(text);
+ if(text_len>target_len&&
+    !strncmp(text,target,target_len)&&text[target_len]==':')
+  return 1;
+ if(snprintf(prefixed,sizeof prefixed,"%s: %s",target,text)>=(int)sizeof prefixed)
+  return 0;
+ if(strlen(prefixed)+1U>text_size)return 0;
+ memcpy(text,prefixed,strlen(prefixed)+1U);
+ return 1;
+}
 
 static size_t write_cb(void *contents,size_t size,size_t nmemb,void *ctx)
 {
@@ -95,6 +126,8 @@ static stnlabz_module_result_t chat_controller(
  result=generate(&in,sizeof in,&out,sizeof out,&used,NULL);
  if(result!=STNLABZ_MODULE_OK)return result;
  if(used!=sizeof out)return STNLABZ_MODULE_ERR_INVALID_STATE;
+ if(!ensure_peer_prefix(in.prompt,out.text,sizeof out.text))
+  return STNLABZ_MODULE_ERR_INVALID_STATE;
  return reply(reply_context,out.text)
   ? STNLABZ_MODULE_OK:STNLABZ_MODULE_ERR_INVALID_STATE;
 }
