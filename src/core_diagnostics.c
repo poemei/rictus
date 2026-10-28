@@ -1,9 +1,11 @@
 #define _POSIX_C_SOURCE 200809L
 #include <dirent.h>
+#include <stdarg.h>
 #include <stdatomic.h>
-#include <stdio.h>\n#include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "core_diagnostics.h"
 
@@ -117,63 +119,153 @@ static int appendf(char *output, size_t output_size, size_t *used,
     return 1;
 }
 
-static int source_registration(const char *owner, const char *needle,
-                               char *path, size_t path_size,
-                               unsigned long *line_out)
+static int source_file(const char *name)
 {
-    const char *root = getenv("RICTUS_SOURCE_ROOT");
-    char directory_path[512];
+    size_t length;
+    if (!name) return 0;
+    length = strlen(name);
+    return length > 2U &&
+        (!strcmp(name + length - 2U, ".c") ||
+         !strcmp(name + length - 2U, ".h"));
+}
+
+static int search_tree(const char *root, const char *relative,
+                       const char *needle, unsigned int depth,
+                       char *path, size_t path_size,
+                       unsigned long *line_out,
+                       char *matched, size_t matched_size)
+{
+    char directory_path[768];
     DIR *directory;
     struct dirent *entry;
-    if (!owner || !*owner || !needle || !*needle || !path || !line_out)
+
+    if (!root || !relative || !needle || !*needle || !path || !line_out)
         return 0;
-    if (!root || !*root) root = "/home/stnchain/rictus";
-    if (snprintf(directory_path, sizeof directory_path, "%s/modules/%s/src",
-                 root, owner) >= (int)sizeof directory_path)
+    if (snprintf(directory_path, sizeof directory_path, "%s/%s",
+                 root, relative) >= (int)sizeof directory_path)
         return 0;
     directory = opendir(directory_path);
     if (!directory) return 0;
 
     while ((entry = readdir(directory)) != NULL) {
-        char full_path[768];
-        FILE *file;
-        char line[2048];
-        unsigned long number = 0UL;
-        size_t name_length = strlen(entry->d_name);
-        if (entry->d_name[0] == '.' || name_length < 3U ||
-            strcmp(entry->d_name + name_length - 2U, ".c") != 0)
+        char child_rel[768];
+        char full_path[1024];
+        struct stat status;
+
+        if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..") ||
+            !strcmp(entry->d_name, ".git") || !strcmp(entry->d_name, "build"))
+            continue;
+        if (snprintf(child_rel, sizeof child_rel, "%s/%s",
+                     relative, entry->d_name) >= (int)sizeof child_rel)
             continue;
         if (snprintf(full_path, sizeof full_path, "%s/%s",
-                     directory_path, entry->d_name) >= (int)sizeof full_path)
+                     root, child_rel) >= (int)sizeof full_path)
             continue;
-        file = fopen(full_path, "r");
-        if (!file) continue;
-        while (fgets(line, sizeof line, file)) {
-            ++number;
-            if (strstr(line, needle)) {
-                if (snprintf(path, path_size, "modules/%s/src/%s",
-                             owner, entry->d_name) < (int)path_size) {
-                    *line_out = number;
-                    fclose(file);
-                    closedir(directory);
-                    return 1;
+        if (stat(full_path, &status) != 0) continue;
+
+        if (S_ISDIR(status.st_mode)) {
+            if (depth && search_tree(root, child_rel, needle, depth - 1U,
+                                     path, path_size, line_out,
+                                     matched, matched_size)) {
+                closedir(directory);
+                return 1;
+            }
+            continue;
+        }
+
+        if (S_ISREG(status.st_mode) && source_file(entry->d_name)) {
+            FILE *file = fopen(full_path, "r");
+            char line[2048];
+            unsigned long number = 0UL;
+            if (!file) continue;
+            while (fgets(line, sizeof line, file)) {
+                ++number;
+                if (strstr(line, needle)) {
+                    if (snprintf(path, path_size, "%s", child_rel) <
+                        (int)path_size) {
+                        *line_out = number;
+                        if (matched && matched_size)
+                            copy_text(matched, matched_size, line);
+                        fclose(file);
+                        closedir(directory);
+                        return 1;
+                    }
                 }
             }
+            fclose(file);
         }
-        fclose(file);
     }
+
     closedir(directory);
     return 0;
+}
+
+static int macro_name_from_define(const char *line,
+                                  char *macro, size_t macro_size)
+{
+    const char *p = line;
+    size_t used = 0U;
+    if (!line || !macro || macro_size < 2U) return 0;
+    while (*p == ' ' || *p == '\t') ++p;
+    if (strncmp(p, "#define", 7) != 0) return 0;
+    p += 7;
+    while (*p == ' ' || *p == '\t') ++p;
+    while (*p && *p != ' ' && *p != '\t' && *p != '(' &&
+           used + 1U < macro_size)
+        macro[used++] = *p++;
+    if (!used) return 0;
+    macro[used] = '\0';
+    return 1;
+}
+
+static int source_for_identifier(const char *owner, const char *identifier,
+                                 char *path, size_t path_size,
+                                 unsigned long *line_out)
+{
+    const char *root = getenv("RICTUS_SOURCE_ROOT");
+    char relative[256];
+    char matched[2048];
+    char macro[256];
+    unsigned long definition_line = 0UL;
+
+    if (!root || !*root) root = "/home/stnchain/rictus";
+    if (!owner || !*owner || !identifier || !*identifier) return 0;
+
+    if (strcmp(owner, "core/unknown") != 0) {
+        if (snprintf(relative, sizeof relative, "modules/%s", owner) >=
+            (int)sizeof relative)
+            return 0;
+        if (search_tree(root, relative, identifier, 6U,
+                        path, path_size, line_out, NULL, 0U))
+            return 1;
+
+        if (search_tree(root, "include", identifier, 4U,
+                        path, path_size, &definition_line,
+                        matched, sizeof matched) &&
+            macro_name_from_define(matched, macro, sizeof macro) &&
+            search_tree(root, relative, macro, 6U,
+                        path, path_size, line_out, NULL, 0U))
+            return 1;
+        return 0;
+    }
+
+    if (search_tree(root, "src", identifier, 4U,
+                    path, path_size, line_out, NULL, 0U))
+        return 1;
+    return search_tree(root, "include", identifier, 4U,
+                       path, path_size, line_out, NULL, 0U);
 }
 
 int rictus_diag_render(char *output, size_t output_size)
 {
     rictus_diag_trace_t snapshot;
-    size_t used = 0U;
-    size_t i;
+    const char *code_owner = NULL;
+    const char *code_identifier = NULL;
     char source_path[512];
     unsigned long source_line = 0UL;
-    const char *source_needle = NULL;
+    size_t used = 0U;
+    size_t i;
+    size_t shown = 0U;
 
     if (!output || output_size < 2U) return 0;
     output[0] = '\0';
@@ -184,73 +276,55 @@ int rictus_diag_render(char *output, size_t output_size)
 
     if (!snapshot.valid)
         return appendf(output, output_size, &used,
-                       "DSD: no prior request trace is available.");
+                       "DSD: no prior request trace.");
 
     if (!appendf(output, output_size, &used,
-                 "DSD last request\n"
-                 "Request: %s\n"
-                 "Sender: %s\n"
-                 "Route: %s\n",
+                 "DSD request=\"%.96s\" route=%s owner=%s result=%s reply=%s\n",
                  snapshot.text[0] ? snapshot.text : "(empty)",
-                 snapshot.sender[0] ? snapshot.sender : "(unknown)",
-                 snapshot.command[0] ? snapshot.command : "(unresolved)"))
+                 snapshot.command[0] ? snapshot.command : "(unresolved)",
+                 snapshot.command_owner[0] ? snapshot.command_owner : "(unknown)",
+                 snapshot.command_seen ?
+                    stnlabz_module_result_string(snapshot.command_result) :
+                    "NOT_REACHED",
+                 snapshot.replied ? "yes" : "no"))
         return 0;
 
-    if (snapshot.command_seen) {
+    for (i = 0U; i < snapshot.service_count && shown < 3U; ++i, ++shown) {
         if (!appendf(output, output_size, &used,
-                     "Controller owner: %s\n"
-                     "Controller result: %s\n"
-                     "Reply produced: %s\n",
-                     snapshot.command_owner[0] ? snapshot.command_owner : "(unknown)",
-                     stnlabz_module_result_string(snapshot.command_result),
-                     snapshot.replied ? "yes" : "no"))
-            return 0;
-    } else {
-        if (!appendf(output, output_size, &used,
-                     "Controller: not reached\n"))
-            return 0;
-    }
-
-    for (i = 0U; i < snapshot.service_count; ++i) {
-        if (!appendf(output, output_size, &used,
-                     "Service[%zu]: %s owner=%s result=%s\n",
-                     i + 1U,
+                     "svc=%s owner=%s result=%s\n",
                      snapshot.services[i].name,
                      snapshot.services[i].owner,
                      stnlabz_module_result_string(snapshot.services[i].result)))
-            return 0;
+            break;
+        if (snapshot.services[i].result != STNLABZ_MODULE_OK) {
+            code_owner = snapshot.services[i].owner;
+            code_identifier = snapshot.services[i].name;
+        }
     }
 
-    if (snapshot.command_owner[0] &&
-        strcmp(snapshot.command_owner, "core/unknown") != 0 &&
-        snapshot.command[0]) {
-        char literal[STNLABZ_MODULE_COMMAND_NAME_MAX + 3U];
-        if (snprintf(literal, sizeof literal, "\"%s\"", snapshot.command) <
-            (int)sizeof literal)
-            source_needle = literal;
-        if (source_needle &&
-            source_registration(snapshot.command_owner, source_needle,
-                                source_path, sizeof source_path, &source_line)) {
-            if (!appendf(output, output_size, &used,
-                         "Code: %s:%lu (route registration evidence)\n",
-                         source_path, source_line))
-                return 0;
-        }
+    if (!code_identifier && snapshot.command[0]) {
+        code_owner = snapshot.command_owner[0] ?
+            snapshot.command_owner : "core/unknown";
+        code_identifier = snapshot.command;
+    }
+
+    if (code_identifier &&
+        source_for_identifier(code_owner, code_identifier,
+                              source_path, sizeof source_path, &source_line)) {
+        (void)appendf(output, output_size, &used,
+                      "Code: %s:%lu\n", source_path, source_line);
     }
 
     if (!snapshot.command_seen ||
         snapshot.command_result != STNLABZ_MODULE_OK) {
-        if (!appendf(output, output_size, &used,
-                     "Disposition: failed before successful controller completion."))
-            return 0;
+        (void)appendf(output, output_size, &used,
+                      "Disposition: route/controller failure.");
     } else if (!snapshot.replied && snapshot.service_count == 0U) {
-        if (!appendf(output, output_size, &used,
-                     "Disposition: controller completed without reply or recorded service action."))
-            return 0;
+        (void)appendf(output, output_size, &used,
+                      "Disposition: completed without reply/action.");
     } else {
-        if (!appendf(output, output_size, &used,
-                     "Disposition: request reached its controller; inspect recorded services/results above."))
-            return 0;
+        (void)appendf(output, output_size, &used,
+                      "Disposition: controller reached; trace above is repair evidence.");
     }
-    return 1;
+    return output[0] != '\0';
 }
