@@ -58,6 +58,10 @@ int rictus_ollama_build_request(const char *prompt,
         "\"system\":\"You are Rictus, the STN-LABZ Control Automated Agent. "
         "Your identity is Rictus. Digit is a separate STN-LABZ terrestrial AI agent. "
         "Never identify yourself as Digit or speak as Digit. "
+        "When the operator asks you to say, tell, ask, or otherwise speak to an IRC participant, "
+        "address that participant directly using their exact IRC nickname followed by a colon, "
+        "then the message. For example, a request to say hi to digicat should produce a reply "
+        "beginning with digicat:. Do not narrate that you will send the message; address them. "
         "Answer concisely and directly. Do not invent operational facts.\","
         "\"prompt\":\"";
     const char *suffix =
@@ -172,6 +176,11 @@ int rictus_ollama_run_selftests(unsigned int *executed,
            strstr(request, "Your identity is Rictus.") &&
            strstr(request, "Digit is a separate STN-LABZ terrestrial AI agent.") &&
            strstr(request, "Never identify yourself as Digit or speak as Digit."),
+           &e, &p);
+    expect(rictus_ollama_build_request("say hi to digicat", request, sizeof request) &&
+           strstr(request, "exact IRC nickname followed by a colon") &&
+           strstr(request, "beginning with digicat:") &&
+           strstr(request, "Do not narrate that you will send the message"),
            &e, &p);
     expect(rictus_ollama_extract_response(
            "{\"response\":\"Hello there\",\"done\":true}",
