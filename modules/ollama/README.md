@@ -63,3 +63,16 @@ will be sent.
 Core routing, IRC transport, model selection, generation limits and identity
 anchoring are unchanged. A source-level regression check verifies that the
 direct-address instruction remains present in generated Ollama requests.
+
+
+## v1.0.7 — Preserve peer question intent (2026-10-28)
+
+Rictus now preserves the operator's intent when addressing another IRC
+participant. Statement requests such as `say` or `tell` remain statements,
+while `ask` requests must be rendered as questions for the addressed
+participant and must not be answered on that participant's behalf.
+
+Example expected behavior:
+`ask digicat how she is` -> `digicat: how are you?`
+
+Core routing, IRC transport, model selection and identity anchoring are unchanged.
