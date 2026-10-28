@@ -1,5 +1,6 @@
 #include <stdatomic.h>
 #include <string.h>
+#include <strings.h>
 
 #include "module_host.h"
 #include "core_diagnostics.h"
@@ -31,7 +32,7 @@ static rictus_service_entry_t services[RICTUS_HOST_SERVICE_MAX];
 static rictus_command_entry_t commands[RICTUS_HOST_COMMAND_MAX];
 static atomic_flag service_lock = ATOMIC_FLAG_INIT;
 static atomic_flag command_lock = ATOMIC_FLAG_INIT;
-static char registering_module[STNLABZ_MODULE_ID_MAX];
+static _Thread_local char registering_module[STNLABZ_MODULE_ID_MAX];
 
 typedef struct rictus_service_frame {
     const rictus_service_entry_t *entry;
@@ -415,7 +416,7 @@ static stnlabz_module_result_t route_dispatch_service(
         !in->text[0] || !response || response_size < sizeof(rictus_route_reply_t))
         return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
 
-    if (!strcmp(in->text, "diagnose my last request")) {
+    if (!strcasecmp(in->text, "diagnose my last request")) {
         char diagnostic[RICTUS_ROUTE_REPLY_MAX];
         rictus_route_reply_t *out = response;
         if (!rictus_diag_render(diagnostic, sizeof diagnostic)) return STNLABZ_MODULE_ERR_INVALID_STATE;
