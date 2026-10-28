@@ -17,6 +17,7 @@ typedef struct {
 
 typedef struct {
     int valid;
+    unsigned long sequence;
     char sender[STNLABZ_MODULE_COMMAND_SENDER_MAX];
     char account[STNLABZ_MODULE_COMMAND_ACCOUNT_MAX];
     char text[RICTUS_DIAG_TEXT_MAX];
@@ -29,8 +30,10 @@ typedef struct {
     size_t service_count;
 } rictus_diag_trace_t;
 
-static rictus_diag_trace_t trace;
+static rictus_diag_trace_t traces[RICTUS_DIAG_TRACE_MAX];
+static unsigned long sequence_counter;
 static atomic_flag trace_lock = ATOMIC_FLAG_INIT;
+static _Thread_local int active_trace = -1;
 
 static void lock_trace(void)
 {
@@ -54,21 +57,60 @@ static void copy_text(char *dst, size_t dst_size, const char *src)
     dst[length] = '\0';
 }
 
+static int same_origin(const rictus_diag_trace_t *item,
+                       const char *sender, const char *account)
+{
+    if (!item || !item->valid) return 0;
+    if (account && *account && item->account[0])
+        return !strcmp(item->account, account);
+    return sender && *sender && !strcmp(item->sender, sender);
+}
+
 void rictus_diag_begin(const char *sender, const char *account, const char *text)
 {
+    size_t i;
+    size_t slot = RICTUS_DIAG_TRACE_MAX;
+    unsigned long oldest = 0UL;
+
     lock_trace();
-    memset(&trace, 0, sizeof trace);
-    trace.valid = 1;
-    copy_text(trace.sender, sizeof trace.sender, sender);
-    copy_text(trace.account, sizeof trace.account, account);
-    copy_text(trace.text, sizeof trace.text, text);
+    for (i = 0U; i < RICTUS_DIAG_TRACE_MAX; ++i) {
+        if (same_origin(&traces[i], sender, account)) {
+            slot = i;
+            break;
+        }
+        if (!traces[i].valid) {
+            slot = i;
+            break;
+        }
+        if (slot == RICTUS_DIAG_TRACE_MAX ||
+            traces[i].sequence < oldest) {
+            slot = i;
+            oldest = traces[i].sequence;
+        }
+    }
+
+    if (slot < RICTUS_DIAG_TRACE_MAX) {
+        memset(&traces[slot], 0, sizeof traces[slot]);
+        traces[slot].valid = 1;
+        traces[slot].sequence = ++sequence_counter;
+        copy_text(traces[slot].sender, sizeof traces[slot].sender, sender);
+        copy_text(traces[slot].account, sizeof traces[slot].account, account);
+        copy_text(traces[slot].text, sizeof traces[slot].text, text);
+        active_trace = (int)slot;
+    } else {
+        active_trace = -1;
+    }
     unlock_trace();
 }
 
 void rictus_diag_route(const char *command)
 {
     lock_trace();
-    if (trace.valid) copy_text(trace.command, sizeof trace.command, command);
+    if (active_trace >= 0 &&
+        active_trace < (int)RICTUS_DIAG_TRACE_MAX &&
+        traces[active_trace].valid)
+        copy_text(traces[active_trace].command,
+                  sizeof traces[active_trace].command, command);
     unlock_trace();
 }
 
@@ -76,14 +118,17 @@ void rictus_diag_command(const char *command, const char *owner,
                          stnlabz_module_result_t result, int replied)
 {
     lock_trace();
-    if (trace.valid) {
+    if (active_trace >= 0 &&
+        active_trace < (int)RICTUS_DIAG_TRACE_MAX &&
+        traces[active_trace].valid) {
+        rictus_diag_trace_t *item = &traces[active_trace];
         if (command && *command)
-            copy_text(trace.command, sizeof trace.command, command);
-        copy_text(trace.command_owner, sizeof trace.command_owner,
+            copy_text(item->command, sizeof item->command, command);
+        copy_text(item->command_owner, sizeof item->command_owner,
                   owner && *owner ? owner : "core/unknown");
-        trace.command_result = result;
-        trace.command_seen = 1;
-        trace.replied = replied ? 1 : 0;
+        item->command_result = result;
+        item->command_seen = 1;
+        item->replied = replied ? 1 : 0;
     }
     unlock_trace();
 }
@@ -91,17 +136,20 @@ void rictus_diag_command(const char *command, const char *owner,
 void rictus_diag_service(const char *service, const char *owner,
                          stnlabz_module_result_t result)
 {
-    rictus_diag_service_t *item;
     lock_trace();
-    if (!trace.valid || trace.service_count >= RICTUS_DIAG_SERVICE_MAX) {
-        unlock_trace();
-        return;
+    if (active_trace >= 0 &&
+        active_trace < (int)RICTUS_DIAG_TRACE_MAX &&
+        traces[active_trace].valid) {
+        rictus_diag_trace_t *trace = &traces[active_trace];
+        if (trace->service_count < RICTUS_DIAG_SERVICE_MAX) {
+            rictus_diag_service_t *item =
+                &trace->services[trace->service_count++];
+            copy_text(item->name, sizeof item->name, service);
+            copy_text(item->owner, sizeof item->owner,
+                      owner && *owner ? owner : "core/unknown");
+            item->result = result;
+        }
     }
-    item = &trace.services[trace.service_count++];
-    copy_text(item->name, sizeof item->name, service);
-    copy_text(item->owner, sizeof item->owner,
-              owner && *owner ? owner : "core/unknown");
-    item->result = result;
     unlock_trace();
 }
 
@@ -235,6 +283,7 @@ static int source_for_identifier(const char *owner, const char *identifier,
         if (snprintf(relative, sizeof relative, "modules/%s", owner) >=
             (int)sizeof relative)
             return 0;
+
         if (search_tree(root, relative, identifier, 6U,
                         path, path_size, line_out, NULL, 0U))
             return 1;
@@ -256,7 +305,8 @@ static int source_for_identifier(const char *owner, const char *identifier,
                        path, path_size, line_out, NULL, 0U);
 }
 
-int rictus_diag_render(char *output, size_t output_size)
+int rictus_diag_render(const char *sender, const char *account,
+                       char *output, size_t output_size)
 {
     rictus_diag_trace_t snapshot;
     const char *code_owner = NULL;
@@ -265,41 +315,53 @@ int rictus_diag_render(char *output, size_t output_size)
     unsigned long source_line = 0UL;
     size_t used = 0U;
     size_t i;
-    size_t shown = 0U;
+    size_t slot = RICTUS_DIAG_TRACE_MAX;
+    size_t start;
 
     if (!output || output_size < 2U) return 0;
     output[0] = '\0';
 
     lock_trace();
-    snapshot = trace;
+    for (i = 0U; i < RICTUS_DIAG_TRACE_MAX; ++i) {
+        if (same_origin(&traces[i], sender, account)) {
+            slot = i;
+            break;
+        }
+    }
+    if (slot < RICTUS_DIAG_TRACE_MAX) snapshot = traces[slot];
     unlock_trace();
 
-    if (!snapshot.valid)
+    if (slot == RICTUS_DIAG_TRACE_MAX)
         return appendf(output, output_size, &used,
-                       "DSD: no prior request trace.");
+                       "DSD: no prior request trace for this sender.");
 
     if (!appendf(output, output_size, &used,
-                 "DSD request=\"%.96s\" route=%s owner=%s result=%s reply=%s\n",
+                 "DSD request=\"%.72s\" route=%.24s owner=%.24s result=%s reply=%s services=%zu\n",
                  snapshot.text[0] ? snapshot.text : "(empty)",
                  snapshot.command[0] ? snapshot.command : "(unresolved)",
                  snapshot.command_owner[0] ? snapshot.command_owner : "(unknown)",
                  snapshot.command_seen ?
                     stnlabz_module_result_string(snapshot.command_result) :
                     "NOT_REACHED",
-                 snapshot.replied ? "yes" : "no"))
+                 snapshot.replied ? "yes" : "no",
+                 snapshot.service_count))
         return 0;
 
-    for (i = 0U; i < snapshot.service_count && shown < 3U; ++i, ++shown) {
-        if (!appendf(output, output_size, &used,
-                     "svc=%s owner=%s result=%s\n",
-                     snapshot.services[i].name,
-                     snapshot.services[i].owner,
-                     stnlabz_module_result_string(snapshot.services[i].result)))
-            break;
+    for (i = 0U; i < snapshot.service_count; ++i) {
         if (snapshot.services[i].result != STNLABZ_MODULE_OK) {
             code_owner = snapshot.services[i].owner;
             code_identifier = snapshot.services[i].name;
         }
+    }
+
+    start = snapshot.service_count > 2U ? snapshot.service_count - 2U : 0U;
+    for (i = start; i < snapshot.service_count; ++i) {
+        if (!appendf(output, output_size, &used,
+                     "svc=%.48s owner=%.20s result=%s\n",
+                     snapshot.services[i].name,
+                     snapshot.services[i].owner,
+                     stnlabz_module_result_string(snapshot.services[i].result)))
+            break;
     }
 
     if (!code_identifier && snapshot.command[0]) {
@@ -310,21 +372,20 @@ int rictus_diag_render(char *output, size_t output_size)
 
     if (code_identifier &&
         source_for_identifier(code_owner, code_identifier,
-                              source_path, sizeof source_path, &source_line)) {
+                              source_path, sizeof source_path, &source_line))
         (void)appendf(output, output_size, &used,
-                      "Code: %s:%lu\n", source_path, source_line);
-    }
+                      "Code: %.96s:%lu\n", source_path, source_line);
 
     if (!snapshot.command_seen ||
-        snapshot.command_result != STNLABZ_MODULE_OK) {
+        snapshot.command_result != STNLABZ_MODULE_OK)
         (void)appendf(output, output_size, &used,
                       "Disposition: route/controller failure.");
-    } else if (!snapshot.replied && snapshot.service_count == 0U) {
+    else if (!snapshot.replied && snapshot.service_count == 0U)
         (void)appendf(output, output_size, &used,
                       "Disposition: completed without reply/action.");
-    } else {
+    else
         (void)appendf(output, output_size, &used,
-                      "Disposition: controller reached; trace above is repair evidence.");
-    }
+                      "Disposition: repair evidence captured.");
+
     return output[0] != '\0';
 }
