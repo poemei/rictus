@@ -68,17 +68,6 @@ static int ensure_peer_prefix(const char *prompt,char *text,size_t text_size)
  return 1;
 }
 
-static int addressed_peer_reply(const char *text)
-{
- const char *p=text;
- size_t length=0U;
- if(!text||!*text)return 0;
- while(*p&&valid_peer_char(*p)&&length<RICTUS_TRANSPORT_TARGET_MAX-1U){
-  ++p;++length;
- }
- return length>0U&&*p==':';
-}
-
 static stnlabz_module_result_t send_peer_action(const char *text)
 {
  rictus_transport_channel_request_t request;
@@ -157,6 +146,7 @@ static stnlabz_module_result_t chat_controller(
 {
  rictus_llm_request_t in;
  rictus_llm_response_t out;
+ char peer_target[128];
  size_t used=0U,len;
  stnlabz_module_result_t result;
  (void)handler_context;
@@ -167,13 +157,14 @@ static stnlabz_module_result_t chat_controller(
  if(!len||len>=sizeof in.prompt)
   return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
  memset(&in,0,sizeof in);memset(&out,0,sizeof out);
+ memset(peer_target,0,sizeof peer_target);
  memcpy(in.prompt,command->arguments,len+1U);
  result=generate(&in,sizeof in,&out,sizeof out,&used,NULL);
  if(result!=STNLABZ_MODULE_OK)return result;
  if(used!=sizeof out)return STNLABZ_MODULE_ERR_INVALID_STATE;
  if(!ensure_peer_prefix(in.prompt,out.text,sizeof out.text))
   return STNLABZ_MODULE_ERR_INVALID_STATE;
- if(addressed_peer_reply(out.text))
+ if(extract_peer_target(in.prompt,peer_target,sizeof peer_target))
   return send_peer_action(out.text);
  return reply(reply_context,out.text)
   ? STNLABZ_MODULE_OK:STNLABZ_MODULE_ERR_INVALID_STATE;
