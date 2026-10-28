@@ -79,3 +79,11 @@ remain unchanged.
 
 Build, qualification, installed-artifact verification and live IRC acceptance
 remain operator-controlled.
+
+
+## v1.0.8 — Buffered TLS read parity with Digit (2026-10-28)
+
+The IRC receive loop now checks `SSL_pending()` before blocking in `poll()`.
+This matches Digit's proven transport behavior and prevents already-decrypted
+IRC lines from remaining buffered inside OpenSSL while the socket itself is
+idle. Core routing and command dispatch are unchanged.
