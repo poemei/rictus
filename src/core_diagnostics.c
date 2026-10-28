@@ -266,7 +266,46 @@ static int macro_name_from_define(const char *line,
     return 1;
 }
 
+static int handler_from_registration(const char *line,
+                                     char *handler, size_t handler_size)
+{
+    const char *p;
+    size_t used = 0U;
+    if (!line || !handler || handler_size < 2U) return 0;
+    p = strstr(line, "register_");
+    if (!p) return 0;
+    p = strchr(p, ',');
+    if (!p) return 0;
+    ++p;
+    while (*p == ' ' || *p == '\t' || *p == '&') ++p;
+    while (((*p >= 'A' && *p <= 'Z') ||
+            (*p >= 'a' && *p <= 'z') ||
+            (*p >= '0' && *p <= '9') || *p == '_') &&
+           used + 1U < handler_size)
+        handler[used++] = *p++;
+    if (!used) return 0;
+    handler[used] = '\0';
+    return 1;
+}
+
+static int handler_definition(const char *root, const char *relative,
+                              const char *registration_line,
+                              char *path, size_t path_size,
+                              unsigned long *line_out)
+{
+    char handler[256];
+    char needle[300];
+    if (!handler_from_registration(registration_line,
+                                   handler, sizeof handler))
+        return 0;
+    if (snprintf(needle, sizeof needle, "%s(", handler) >= (int)sizeof needle)
+        return 0;
+    return search_tree(root, relative, needle, 6U,
+                       path, path_size, line_out, NULL, 0U);
+}
+
 static int source_for_identifier(const char *owner, const char *identifier,
+                                 int is_service,
                                  char *path, size_t path_size,
                                  unsigned long *line_out)
 {
@@ -274,6 +313,8 @@ static int source_for_identifier(const char *owner, const char *identifier,
     char relative[256];
     char matched[2048];
     char macro[256];
+    char registration[512];
+    unsigned long registration_line = 0UL;
     unsigned long definition_line = 0UL;
 
     if (!root || !*root) root = "/home/stnchain/rictus";
@@ -284,15 +325,49 @@ static int source_for_identifier(const char *owner, const char *identifier,
             (int)sizeof relative)
             return 0;
 
-        if (search_tree(root, relative, identifier, 6U,
-                        path, path_size, line_out, NULL, 0U))
-            return 1;
+        if (!is_service) {
+            if (snprintf(registration, sizeof registration,
+                         "register_command(\"%s\"", identifier) <
+                (int)sizeof registration &&
+                search_tree(root, relative, registration, 6U,
+                            path, path_size, &registration_line,
+                            matched, sizeof matched)) {
+                if (handler_definition(root, relative, matched,
+                                       path, path_size, line_out))
+                    return 1;
+                *line_out = registration_line;
+                return 1;
+            }
+        } else {
+            if (snprintf(registration, sizeof registration,
+                         "register_service(\"%s\"", identifier) <
+                (int)sizeof registration &&
+                search_tree(root, relative, registration, 6U,
+                            path, path_size, &registration_line,
+                            matched, sizeof matched)) {
+                if (handler_definition(root, relative, matched,
+                                       path, path_size, line_out))
+                    return 1;
+                *line_out = registration_line;
+                return 1;
+            }
 
-        if (search_tree(root, "include", identifier, 4U,
-                        path, path_size, &definition_line,
-                        matched, sizeof matched) &&
-            macro_name_from_define(matched, macro, sizeof macro) &&
-            search_tree(root, relative, macro, 6U,
+            if (search_tree(root, "include", identifier, 4U,
+                            path, path_size, &definition_line,
+                            matched, sizeof matched) &&
+                macro_name_from_define(matched, macro, sizeof macro) &&
+                search_tree(root, relative, macro, 6U,
+                            path, path_size, &registration_line,
+                            matched, sizeof matched)) {
+                if (handler_definition(root, relative, matched,
+                                       path, path_size, line_out))
+                    return 1;
+                *line_out = registration_line;
+                return 1;
+            }
+        }
+
+        if (search_tree(root, relative, identifier, 6U,
                         path, path_size, line_out, NULL, 0U))
             return 1;
         return 0;
@@ -311,6 +386,7 @@ int rictus_diag_render(const char *sender, const char *account,
     rictus_diag_trace_t snapshot;
     const char *code_owner = NULL;
     const char *code_identifier = NULL;
+    int code_is_service = 0;
     char source_path[512];
     unsigned long source_line = 0UL;
     size_t used = 0U;
@@ -351,6 +427,7 @@ int rictus_diag_render(const char *sender, const char *account,
         if (snapshot.services[i].result != STNLABZ_MODULE_OK) {
             code_owner = snapshot.services[i].owner;
             code_identifier = snapshot.services[i].name;
+            code_is_service = 1;
         }
     }
 
@@ -368,10 +445,11 @@ int rictus_diag_render(const char *sender, const char *account,
         code_owner = snapshot.command_owner[0] ?
             snapshot.command_owner : "core/unknown";
         code_identifier = snapshot.command;
+        code_is_service = 0;
     }
 
     if (code_identifier &&
-        source_for_identifier(code_owner, code_identifier,
+        source_for_identifier(code_owner, code_identifier, code_is_service,
                               source_path, sizeof source_path, &source_line))
         (void)appendf(output, output_size, &used,
                       "Code: %.96s:%lu\n", source_path, source_line);
