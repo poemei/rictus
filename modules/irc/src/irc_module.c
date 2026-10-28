@@ -16,12 +16,12 @@
 #include <openssl/x509_vfy.h>
 #include "stnlabz_abi/module.h"
 #include "rictus_transport.h"
-#include "rictus_llm.h"
+#include "rictus_route.h"
 #include "irc_internal.h"
 
 #define IRC_VERSION_MAJOR 1U
 #define IRC_VERSION_MINOR 0U
-#define IRC_VERSION_PATCH 6U
+#define IRC_VERSION_PATCH 7U
 #define IRC_OUTBOUND_MAX 32U
 #define IRC_STARTUP_WAIT_SECONDS 30U
 
@@ -274,64 +274,60 @@ static void handle_conversation_message(const char *line)
 {
     char sender[RICTUS_IRC_NICK_MAX];
     char target[RICTUS_IRC_CHANNEL_MAX];
-    char message[RICTUS_LLM_PROMPT_MAX];
-    const char *prompt = NULL;
+    char message[RICTUS_ROUTE_TEXT_MAX];
+    const char *input = NULL;
     int private_message = 0;
-    rictus_llm_request_t request;
-    rictus_llm_response_t response;
-    size_t prompt_length;
-    size_t response_used = 0U;
+    rictus_route_request_t request;
+    rictus_route_reply_t response;
+    size_t input_length, response_used = 0U;
     stnlabz_module_result_t result;
 
-    if (!module_host || !module_host->invoke_service) return;
+    if (!module_host || !module_host->invoke_service) {
+        status("PRIVMSG rejected: Core routing host unavailable");
+        return;
+    }
     if (!rictus_irc_parse_privmsg(line,
                                   sender, sizeof sender,
                                   target, sizeof target,
-                                  message, sizeof message))
+                                  message, sizeof message)) {
+        status("PRIVMSG rejected: invalid or unsupported message format");
         return;
+    }
     if (!strcasecmp(sender, config.nick)) return;
 
     if (!strcasecmp(target, config.nick)) {
         private_message = 1;
-        prompt = message;
+        input = message;
     } else if (!strcasecmp(target, config.channel)) {
-        if (!channel_prompt(message, &prompt)) return;
+        if (!channel_prompt(message, &input)) return;
     } else {
+        status("PRIVMSG ignored: target not configured channel or private message");
         return;
     }
 
-    prompt_length = strlen(prompt);
-    if (!prompt_length || prompt_length >= sizeof request.prompt) return;
+    input_length = strlen(input);
+    if (!input_length || input_length >= sizeof request.text ||
+        strlen(sender) >= sizeof request.sender) return;
 
     memset(&request, 0, sizeof request);
     memset(&response, 0, sizeof response);
-    memcpy(request.prompt, prompt, prompt_length + 1U);
+    memcpy(request.sender, sender, strlen(sender) + 1U);
+    memcpy(request.text, input, input_length + 1U);
 
-    status("addressed message received; invoking LLM service");
-    result = module_host->invoke_service(RICTUS_LLM_GENERATE_SERVICE,
+    result = module_host->invoke_service(RICTUS_ROUTER_DISPATCH_SERVICE,
                                          &request, sizeof request,
                                          &response, sizeof response,
                                          &response_used);
     if (result != STNLABZ_MODULE_OK) {
         char detail[128];
         (void)snprintf(detail, sizeof detail,
-                       "LLM service invocation failed result=%d", (int)result);
+                       "Core route unavailable result=%d", (int)result);
         status(detail);
         return;
     }
-    if (response_used != sizeof response) {
-        char detail[128];
-        (void)snprintf(detail, sizeof detail,
-                       "LLM response size invalid used=%zu expected=%zu",
-                       response_used, sizeof response);
-        status(detail);
-        return;
-    }
-    if (!memchr(response.text, '\0', sizeof response.text) || !response.text[0]) {
-        status("LLM response invalid or empty");
-        return;
-    }
-    status("LLM response received; queueing IRC reply");
+    if (response_used != sizeof response || !response.replied ||
+        !memchr(response.text, '\0', sizeof response.text) ||
+        !response.text[0]) return;
 
     sanitize_irc_text(response.text);
     if (private_message)
