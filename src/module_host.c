@@ -180,8 +180,10 @@ static stnlabz_module_result_t invoke_service(
     stnlabz_module_service_handler_fn handler = NULL;
     void *context = NULL;
     stnlabz_module_result_t result;
+    char service_owner[STNLABZ_MODULE_ID_MAX];
     size_t i;
 
+    service_owner[0] = '\0';
     if (response_used) *response_used = 0U;
     if (!name || (request_size && !request) || (response_size && !response))
         return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
@@ -214,9 +216,13 @@ static stnlabz_module_result_t invoke_service(
     }
 
     lock(&service_lock);
+    if (entry->owner[0])
+        memcpy(service_owner, entry->owner, strlen(entry->owner) + 1U);
+    else
+        memcpy(service_owner, "core/unknown", sizeof "core/unknown");
     entry->in_flight--;
     unlock(&service_lock);
-    rictus_diag_service(name, entry->owner, result);
+    rictus_diag_service(name, service_owner, result);
     return result;
 }
 
@@ -351,7 +357,9 @@ static stnlabz_module_result_t dispatch_command(
     rictus_command_entry_t *entry = NULL;
     stnlabz_module_result_t result;
     void *handler_context = NULL;
+    char command_owner[STNLABZ_MODULE_ID_MAX];
     size_t i;
+    command_owner[0] = '\0';
     (void)context;
 
     if (response_used) *response_used = 0U;
@@ -387,12 +395,16 @@ static stnlabz_module_result_t dispatch_command(
         current_command_frame = frame.previous;
     }
     lock(&command_lock);
+    if (entry->owner[0])
+        memcpy(command_owner, entry->owner, strlen(entry->owner) + 1U);
+    else
+        memcpy(command_owner, "core/unknown", sizeof "core/unknown");
     entry->in_flight--;
     unlock(&command_lock);
 
     if (result == STNLABZ_MODULE_OK && response_used)
         *response_used = sizeof *out;
-    rictus_diag_command(cmd->name, entry->owner, result, out->replied);
+    rictus_diag_command(cmd->name, command_owner, result, out->replied);
     return result;
 }
 
@@ -419,7 +431,9 @@ static stnlabz_module_result_t route_dispatch_service(
     if (!strcasecmp(in->text, "diagnose my last request")) {
         char diagnostic[RICTUS_ROUTE_REPLY_MAX];
         rictus_route_reply_t *out = response;
-        if (!rictus_diag_render(diagnostic, sizeof diagnostic)) return STNLABZ_MODULE_ERR_INVALID_STATE;
+        if (!rictus_diag_render(in->sender, in->account,
+                                diagnostic, sizeof diagnostic))
+            return STNLABZ_MODULE_ERR_INVALID_STATE;
         memset(out, 0, sizeof *out);
         memcpy(out->text, diagnostic, strlen(diagnostic) + 1U);
         out->replied = 1;
