@@ -34,7 +34,7 @@ diagnosed.
 Command and service ownership is captured from the module activation/registration
 path without changing ABI 1.5. Source correlation is performed at diagnosis time
 against the current Rictus source tree. The default source root is
-`/home/stnchain/rictus`; `RICTUS_SOURCE_ROOT` may override it. Reported code
+`/home/<source_user>/rictus`; `RICTUS_SOURCE_ROOT` may override it. Reported code
 locations are repo-relative, for example:
 
 `modules/ollama/src/ollama_module.c:143`
