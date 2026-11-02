@@ -6,6 +6,8 @@
 #include "core_diagnostics.h"
 #include "rictus_transport.h"
 #include "rictus_route.h"
+#include "rictus_policy.h"
+#include "core_policy.h"
 
 #define RICTUS_HOST_SERVICE_MAX 32U
 #define RICTUS_HOST_COMMAND_MAX 32U
@@ -104,7 +106,9 @@ static int register_service(const char *name,
     size_t free_slot = RICTUS_HOST_SERVICE_MAX;
     size_t length;
 
-    if (!name || !handler || !strcmp(name, RICTUS_ROUTER_DISPATCH_SERVICE)) return 0;
+    if (!name || !handler ||
+        !strcmp(name, RICTUS_ROUTER_DISPATCH_SERVICE) ||
+        !strcmp(name, STNLABZ_POLICY_EVALUATE_SERVICE)) return 0;
     length = bounded_length(name, STNLABZ_MODULE_SERVICE_NAME_MAX);
     if (!length || length >= STNLABZ_MODULE_SERVICE_NAME_MAX) return 0;
 
@@ -168,6 +172,65 @@ static int unregister_service(const char *name, void *context)
 static stnlabz_module_result_t route_dispatch_service(
     const void *, size_t, void *, size_t, size_t *, void *);
 
+static stnlabz_module_result_t policy_evaluate_service(
+    const void *request, size_t request_size,
+    void *response, size_t response_size, size_t *response_used,
+    void *context)
+{
+    const rictus_policy_evaluate_request_t *in = request;
+    rictus_policy_evaluate_response_t *out = response;
+    stnlabz_policy_request_t policy_request;
+    stnlabz_policy_result_t policy_result;
+
+    (void)context;
+    if (response_used) *response_used = 0U;
+    if (!in || request_size != sizeof *in || !out ||
+        response_size < sizeof *out ||
+        !memchr(in->actor, 0, sizeof in->actor) ||
+        !memchr(in->mission, 0, sizeof in->mission) ||
+        !memchr(in->operation, 0, sizeof in->operation) ||
+        !memchr(in->module_id, 0, sizeof in->module_id) ||
+        !memchr(in->escalation_target, 0, sizeof in->escalation_target) ||
+        !memchr(in->verification_source, 0, sizeof in->verification_source) ||
+        (in->within_mission != 0 && in->within_mission != 1) ||
+        (in->complies_with_policy != 0 && in->complies_with_policy != 1) ||
+        (in->instruction_authorized != 0 && in->instruction_authorized != 1) ||
+        (in->authority_granted != 0 && in->authority_granted != 1) ||
+        (in->context_verified != 0 && in->context_verified != 1))
+        return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
+
+    memset(&policy_request, 0, sizeof policy_request);
+    policy_request.actor = in->actor;
+    policy_request.mission = in->mission;
+    policy_request.operation = in->operation;
+    policy_request.module_id = in->module_id;
+    policy_request.escalation_target = in->escalation_target[0] ?
+        in->escalation_target : NULL;
+    policy_request.verification_source = in->verification_source;
+    policy_request.within_mission = in->within_mission;
+    policy_request.complies_with_policy = in->complies_with_policy;
+    policy_request.instruction_authorized = in->instruction_authorized;
+    policy_request.authority_granted = in->authority_granted;
+    policy_request.context_verified = in->context_verified;
+
+    if (!stnlabz_core_policy_evaluate(&policy_request, &policy_result))
+        return STNLABZ_MODULE_ERR_INVALID_STATE;
+
+    memset(out, 0, sizeof *out);
+    out->decision = (int)policy_result.decision;
+    out->escalation_status = (int)policy_result.escalation_status;
+    if (snprintf(out->policy_id, sizeof out->policy_id, "%s",
+                 policy_result.policy_id ? policy_result.policy_id : "unknown") >=
+        (int)sizeof out->policy_id ||
+        snprintf(out->reason, sizeof out->reason, "%s",
+                 policy_result.reason ? policy_result.reason : "unknown") >=
+        (int)sizeof out->reason)
+        return STNLABZ_MODULE_ERR_INVALID_STATE;
+
+    if (response_used) *response_used = sizeof *out;
+    return STNLABZ_MODULE_OK;
+}
+
 static stnlabz_module_result_t invoke_service(
     const char *name,
     const void *request,
@@ -205,6 +268,9 @@ static stnlabz_module_result_t invoke_service(
     if (!handler && !strcmp(name, RICTUS_ROUTER_DISPATCH_SERVICE))
         return route_dispatch_service(request, request_size, response,
                                       response_size, response_used, NULL);
+    if (!handler && !strcmp(name, STNLABZ_POLICY_EVALUATE_SERVICE))
+        return policy_evaluate_service(request, request_size, response,
+                                       response_size, response_used, NULL);
     if (!handler) { rictus_diag_service(name, "core/unknown", STNLABZ_MODULE_ERR_NOT_FOUND); return STNLABZ_MODULE_ERR_NOT_FOUND; }
 
     {
