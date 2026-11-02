@@ -90,6 +90,22 @@ The compliance module has no restart, stop, deployment, mutation, or other
 operational execution capability. `executor=REACHED` means only that the
 General Order gate admitted the request to the no-op proving executor.
 
+### Operator-observed 1.0.1 behavior
+
+Live client evidence on 2026-11-01 demonstrated:
+
+- all checks satisfied -> `ALLOW / CORE.GO1_GO2_GO3`, `executor=REACHED`
+- outside mission -> `DENY / CORE.GO1`, `executor=BLOCKED`
+- policy conflict -> `ESCALATE / CORE.GO2`, `executor=BLOCKED`
+- outside delegated authority -> `ESCALATE / CORE.GO3`, `executor=BLOCKED`
+
+All observed cases reported `execution=SUPPRESSED`.
+
+The current proving flags remain supplied test inputs. They are not yet derived
+from authoritative mission, policy, directive, instruction, or delegated-authority
+sources.
+
+
 ## Module: ollama
 
 **Version:** 1.0.10  
