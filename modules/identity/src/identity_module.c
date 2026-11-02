@@ -73,8 +73,8 @@ static stnlabz_module_result_t controller(const stnlabz_module_command_t *cmd,
 static stnlabz_module_result_t answer_service(const void *request,size_t request_size,
  void *response,size_t response_size,size_t *used,void *ctx)
 {
- const RICTUS_identity_question_t *in=request;
- RICTUS_identity_answer_t *out=response;
+ const rictus_identity_question_t *in=request;
+ rictus_identity_answer_t *out=response;
  char topic[80];
  (void)ctx;
  if(used)*used=0;
@@ -131,7 +131,7 @@ static stnlabz_module_result_t stop(void)
  return STNLABZ_MODULE_OK;
 }
 static const stnlabz_module_descriptor_t descriptor={
- "identity","RICTUS Identity and Mission",1,1,2,
+ "identity","Rictus Identity and Mission",1,1,3,
  STNLABZ_MODULE_API_MAJOR,STNLABZ_MODULE_API_MINOR,qualify,start,stop
 };
 const stnlabz_module_descriptor_t *stnlabz_module_get_descriptor(void){return &descriptor;}
