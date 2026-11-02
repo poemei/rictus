@@ -62,6 +62,20 @@ Operator-observed DSD path:
 - unrelated conversation returns `NOT_FOUND` for Ollama fallback
 - current source version 1.1.3; operator build/runtime acceptance pending
 
+
+### Compliance proving gate
+
+Current source implementation:
+
+- Core exposes the existing fail-closed General Order evaluator as `stnlabz.policy.evaluate`
+- compliance module 1.0.0 provides explicit evaluate-only scenarios
+- GO1, GO2 and GO3 are evaluated independently from Ollama
+- every proving response reports `execution=SUPPRESSED`
+- no operational restart/stop/deploy authority has been granted
+- source is implemented; build, activation, operator testing and acceptance are pending
+
+This is the proving stage before Rictus receives operational control capability.
+
 ### Ollama
 
 - local `llama3.2:1b`
