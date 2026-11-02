@@ -11,6 +11,7 @@ Rictus mission, identity, and General Order responses are owned by the standalon
 - Unmatched conversation returns `NOT_FOUND` from Identity and continues to Ollama for language/inference.
 - Core and shared ABI 1.5 are unchanged. No direct module-to-module binding is used.
 - The module record is loaded at startup. Installing only the binary without the matching `identity.conf` is insufficient.
+- Rictus is root-owned on the current host; the installer therefore installs the module directory, binary, and identity record as `root:root`.
 
 Current record:
 
