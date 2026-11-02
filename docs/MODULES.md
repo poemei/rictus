@@ -57,7 +57,7 @@ Default source root:
 
 ## Module: ollama
 
-**Version:** 1.0.9  
+**Version:** 1.0.10  
 **Location:** `modules/ollama/`  
 **Role:** conversational/controller layer backed by local Ollama
 
@@ -82,6 +82,7 @@ Endpoint:
 ### Current responsibilities
 
 - default conversational generation
+- deterministic delegation of identity/mission/General Order questions to `rictus.identity.answer`
 - Rictus identity anchoring
 - peer-address wording
 - peer target preservation for proven `say/tell/ask` forms
@@ -94,6 +95,37 @@ Endpoint:
 - module lifecycle
 - intelligence polling
 - DSD runtime truth
+
+
+## Module: identity
+
+**Version:** 1.1.3  
+**Location:** `modules/identity/`  
+**Role:** authoritative Rictus identity, mission, and General Order responses
+
+### Registered interfaces
+
+Command:
+
+`identity`
+
+Service:
+
+`rictus.identity.answer`
+
+### Current responsibilities
+
+- load the installed read-only identity record from `/opt/rictus/modules/identity/identity.conf`
+- answer deterministic identity, mission, and General Order requests
+- recognize bounded natural-language identity questions
+- return `NOT_FOUND` for unrelated conversation so Ollama may handle language/inference
+- keep foundational self-knowledge out of model inference
+
+### Current record
+
+- name: Rictus
+- role: Control Automated Agent
+- mission: `I exist to help STN-LABZ observe, understand, coordinate, and control operational activity across its systems.`
 
 ## Module: irc
 
