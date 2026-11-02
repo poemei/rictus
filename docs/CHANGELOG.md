@@ -308,3 +308,52 @@ otherwise authorized request when the supplied governing state conflicts with
 his General Orders.
 
 Core routing semantics and shared ABI 1.5 are unchanged. DSD was not modified.
+
+
+### Compliance 1.0.0 — operator-observed General Order decisions
+
+**Operator-observed; continuation authorized**
+
+The operator exercised all four proving scenarios through the live Rictus client:
+
+- all checks true -> `ALLOW / CORE.GO1_GO2_GO3`
+- outside mission -> `DENY / CORE.GO1`
+- policy conflict with authorized instruction -> `ESCALATE / CORE.GO2`
+- outside delegated authority -> `ESCALATE / CORE.GO3`
+
+Every observed response reported `execution=SUPPRESSED`.
+
+After reviewing those results, the operator instructed development to continue to
+the next named stage: mandatory compliance enforcement at the control-action
+boundary.
+
+### Compliance 1.0.1 — mandatory control-request broker
+
+**Implemented; build/runtime/operator acceptance pending**
+
+Compliance 1.0.1 adds the registered service:
+
+`rictus.control.request`
+
+and the explicit proving command:
+
+`/control`
+
+The control broker always invokes Core's `stnlabz.policy.evaluate` before the
+executor boundary.
+
+Enforcement behavior:
+
+- `ALLOW` -> executor boundary is reached
+- `DENY` -> executor boundary is blocked
+- `ESCALATE` -> executor boundary is blocked
+- all outcomes -> `execution=SUPPRESSED`
+
+The current executor is deliberately a no-op proving stub. No restart, stop,
+deployment, mutation, or other operational control capability was added.
+
+The proving scenario flags remain test inputs, not production authentication,
+policy discovery, directive discovery, or authority verification. Authoritative
+sources for those inputs are required before operational status.
+
+DSD and shared ABI 1.5 were not changed.
