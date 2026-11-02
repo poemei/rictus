@@ -4,7 +4,8 @@ Rictus-specific local LLM transport.
 
 - Endpoint: `http://127.0.0.1:11434/api/generate`
 - Model: `llama3.2:1b`
-- Service: `rictus.llm.generate`\n- Command controller: `chat`
+- Service: `rictus.llm.generate`
+- Command controller: `chat`
 - No credential/config file is required.
 - Ollama owns generation only; it does not own Rictus state, authority, IRC, or intelligence.
 
@@ -99,3 +100,22 @@ shared message transport rather than echoed back into that private conversation.
 Ordinary conversational responses remain replies to their original source.
 
 Core routing and IRC transport behavior are unchanged.
+
+
+## v1.0.10 — Deterministic Identity delegation (2026-11-01)
+
+The `chat` controller now consults the Core-registered
+`rictus.identity.answer` service before invoking Ollama generation.
+
+Identity, mission, and recognized General Order questions are therefore answered
+from the standalone Identity module's installed data rather than inferred by the
+language model.
+
+Behavior:
+
+- Identity service `OK` -> return the authoritative Identity answer.
+- Identity service `NOT_FOUND` -> continue to Ollama language/inference.
+- Any other Identity service failure -> fail closed rather than inventing an answer.
+
+Peer-address behavior from 1.0.9 is unchanged for requests that reach generation.
+Core routing and shared ABI 1.5 are unchanged.
