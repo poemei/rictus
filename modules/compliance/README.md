@@ -1,9 +1,11 @@
-# Rictus Compliance Proving Gate — 1.0.0
+# Rictus Compliance Proving Gate — 1.0.1
 
 This module demonstrates Rictus compliance with the three organization-wide
 STN-LABZ General Orders before Rictus is granted operational control capability.
 
 It does **not** execute operational actions.
+
+Version 1.0.1 adds a mandatory control-request broker. A proposed control action cannot reach the executor boundary unless Core first returns `ALLOW` from the General Order evaluator. The executor itself remains deliberately suppressed in this proving stage.
 
 The module registers the explicit command:
 
@@ -65,3 +67,50 @@ Core must also be rebuilt and installed because
 
 Source implementation is not operator acceptance. Runtime behavior must be
 tested through the operator-selected client.
+
+
+## Mandatory control broker
+
+The module also registers:
+
+`/control`
+
+and the service:
+
+`rictus.control.request`
+
+The control path is:
+
+```text
+proposed action
+    -> rictus.control.request
+    -> stnlabz.policy.evaluate
+    -> DENY / ESCALATE: executor BLOCKED
+    -> ALLOW: executor REACHED
+    -> execution SUPPRESSED
+```
+
+The proving executor performs no restart, stop, deployment, mutation, message,
+or other external side effect. Its only purpose is to prove whether the
+General Order gate physically prevents non-ALLOW decisions from reaching the
+execution boundary.
+
+Examples:
+
+```text
+/control restart digit mission=yes policy=yes instruction=yes authority=yes
+/control restart digit mission=no policy=yes instruction=yes authority=yes
+/control restart digit mission=yes policy=no instruction=yes authority=yes escalate=STN6
+/control restart digit mission=yes policy=yes instruction=yes authority=no escalate=STN6
+```
+
+Expected executor disposition:
+
+- `ALLOW` -> `executor=REACHED execution=SUPPRESSED`
+- `DENY` -> `executor=BLOCKED execution=SUPPRESSED`
+- `ESCALATE` -> `executor=BLOCKED execution=SUPPRESSED`
+
+The flags in this proving interface are controlled scenario inputs. They do not
+constitute production authentication, policy discovery, directive discovery, or
+delegated-authority verification. Those inputs will require authoritative
+sources before operational status.
