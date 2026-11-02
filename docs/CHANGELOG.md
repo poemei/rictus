@@ -274,3 +274,37 @@ The Identity module installer was corrected to use `root:root` for:
 - `identity.conf`
 
 No Identity runtime logic, Core, ABI, or Ollama behavior changed in this installer-only correction.
+
+
+### Compliance 1.0.0 — General Order proving gate
+
+**Implemented; build/runtime/operator acceptance pending**
+
+Rictus now has an evaluate-only compliance proving path backed by the existing
+Core fail-closed policy evaluator.
+
+Core now exposes the reserved service:
+
+`stnlabz.policy.evaluate`
+
+through the existing module service boundary. The service evaluates:
+
+- GO1 — assigned mission
+- GO2 — established policy and authorized instruction
+- GO3 — delegated authority and escalation
+
+The new Compliance module 1.0.0 registers:
+
+`/compliance`
+
+for explicit operator-defined proving scenarios. It can return `ALLOW`, `DENY`,
+or `ESCALATE`, while every result includes:
+
+`execution=SUPPRESSED`
+
+No restart, stop, deployment, mutation, or other operational control capability
+was added. This stage is intended to prove Rictus can refuse or escalate an
+otherwise authorized request when the supplied governing state conflicts with
+his General Orders.
+
+Core routing semantics and shared ABI 1.5 are unchanged. DSD was not modified.
