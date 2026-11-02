@@ -244,7 +244,7 @@ Corrections:
 
 - added the public `rictus.identity.answer` service contract
 - corrected Identity installation from `/opt/digit` to `/opt/rictus`
-- corrected module ownership from `digit:digit` to `rictus:rictus`
+- corrected module ownership from the copied `digit:digit` assumption to the actual Rictus host ownership model: `root:root`
 - corrected the role to `Control Automated Agent`
 - corrected the mission record to: `I exist to help STN-LABZ observe, understand, coordinate, and control operational activity across its systems.`
 - converted natural-language identity parsing from Digit/digicat forms to Rictus forms
@@ -259,3 +259,18 @@ Corrections:
 Core routing and shared ABI 1.5 are unchanged.
 
 This change specifically removes Ollama as the authority for simple foundational questions such as `what is your mission?`.
+
+
+### Identity installer ownership correction
+
+**Implemented; operator re-test pending**
+
+Operator installation showed there is no `rictus` system account and the Rictus installation is root-owned.
+
+The Identity module installer was corrected to use `root:root` for:
+
+- `/opt/rictus/modules/identity`
+- `identity.so`
+- `identity.conf`
+
+No Identity runtime logic, Core, ABI, or Ollama behavior changed in this installer-only correction.
