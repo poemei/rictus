@@ -6,11 +6,12 @@
 #include <string.h>
 #include "stnlabz_abi/module.h"
 #include "rictus_llm.h"
+#include "rictus_identity.h"
 #include "ollama_internal.h"
 
 #define OLLAMA_VERSION_MAJOR 1U
 #define OLLAMA_VERSION_MINOR 0U
-#define OLLAMA_VERSION_PATCH 9U
+#define OLLAMA_VERSION_PATCH 10U
 
 typedef struct { char *data; size_t used; size_t capacity; } buffer_t;
 static const stnlabz_module_host_t *owner;
@@ -146,6 +147,29 @@ static stnlabz_module_result_t chat_controller(
  if(!command||!reply||
     !memchr(command->arguments,0,sizeof command->arguments))
   return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
+
+ if(owner&&owner->invoke_service){
+  rictus_identity_question_t question={{0}};
+  rictus_identity_answer_t identity={{0}};
+  size_t identity_used=0U;
+  stnlabz_module_result_t identity_result;
+  size_t question_length=strlen(command->arguments);
+  if(question_length>=sizeof question.question)
+   return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
+  memcpy(question.question,command->arguments,question_length+1U);
+  identity_result=owner->invoke_service(RICTUS_IDENTITY_ANSWER_SERVICE,
+      &question,sizeof question,&identity,sizeof identity,&identity_used);
+  if(identity_result==STNLABZ_MODULE_OK){
+   if(identity_used!=sizeof identity||
+      !memchr(identity.answer,0,sizeof identity.answer)||!identity.answer[0])
+    return STNLABZ_MODULE_ERR_INVALID_STATE;
+   return reply(reply_context,identity.answer)
+    ? STNLABZ_MODULE_OK:STNLABZ_MODULE_ERR_INVALID_STATE;
+  }
+  if(identity_result!=STNLABZ_MODULE_ERR_NOT_FOUND)
+   return STNLABZ_MODULE_ERR_INVALID_STATE;
+ }
+
  len=strlen(command->arguments);
  if(!len||len>=sizeof in.prompt)
   return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
@@ -176,7 +200,7 @@ static stnlabz_module_result_t qualify(stnlabz_module_qualification_result_t *q)
 
 static stnlabz_module_result_t start(const stnlabz_module_host_t *h)
 {
- if(!h||!h->send_message||
+ if(!h||!h->send_message||!h->invoke_service||
     !h->register_service||!h->unregister_service||
     !h->register_command||!h->unregister_command)
   return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
