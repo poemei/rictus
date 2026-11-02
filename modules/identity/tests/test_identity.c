@@ -16,18 +16,20 @@ int main(void)
   puts("Identity record load FAIL");
   return 1;
  }
- if (strcmp(record.orders[0],"Remain at your assigned mission.") ||
+ if (strcmp(record.orders[0],"Remain at my assigned mission.") ||
      strcmp(record.orders[1],"Follow established policies and authorized instructions.") ||
-     strcmp(record.orders[2],"Report anything outside your authority to the appropriate next level of authority.")) ok=0;
+     strcmp(record.orders[2],"Report anything outside of my authority to the appropriate people levels above me.")) ok=0;
  if (!identity_reply(&record,"mission",answer,sizeof answer) ||
-     strcmp(answer,"Digit's mission is to support STN-LABZ in the pursuit and advancement of its overall mission, objectives, and long-term vision through research, development, engineering, technical analysis, innovation, and operational support."))
+     strcmp(answer,"I exist to help STN-LABZ observe, understand, coordinate, and control operational activity across its systems."))
   ok=0;
  {
   static const struct { const char *question; const char *expected; } positive[] = {
    {"what is your mission?", "mission"},
-   {"digicat, what is your mission?", "mission"},
+   {"rictus, what is your mission?", "mission"},
+   {"rictus: what is your mission?", "mission"},
    {"who are you?", "who"},
-   {"digicat, who are you?", "who"},
+   {"rictus, who are you?", "who"},
+   {"rictus: who are you?", "who"},
    {"what is your 1st general order?", "1"},
    {"what is your 2nd general order?", "2"},
    {"what is your 3rd general order?", "3"},
