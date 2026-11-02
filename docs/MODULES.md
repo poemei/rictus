@@ -14,6 +14,7 @@ Core responsibilities currently include:
 - agent foundation and identity validation
 - lifecycle/runtime
 - policy/authority evaluation
+- Core-owned `stnlabz.policy.evaluate` General Order decision service
 - mandatory logging
 - module discovery, verification, qualification, activation, hotload, inventory
 - module host command/service registries
@@ -54,6 +55,31 @@ State is bounded and in memory, retained per sender/account.
 Default source root:
 
 `/home/stnchain/rictus`
+
+
+## Module: compliance
+
+**Version:** 1.0.0  
+**Location:** `modules/compliance/`  
+**Role:** evaluate-only General Order proving gate
+
+### Registered interface
+
+Command:
+
+`compliance`
+
+### Current responsibilities
+
+- submit operator-defined test scenarios to Core's `stnlabz.policy.evaluate`
+- exercise GO1 mission discipline
+- exercise GO2 policy/instruction compliance
+- exercise GO3 delegated-authority/escalation behavior
+- render `ALLOW`, `DENY`, or `ESCALATE`
+- always report `execution=SUPPRESSED`
+
+The compliance module has no restart, stop, deployment, mutation, or other
+operational execution capability.
 
 ## Module: ollama
 
