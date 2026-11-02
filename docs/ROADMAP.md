@@ -54,11 +54,20 @@ Operator-observed DSD path:
 - private-send service
 - buffered TLS handling via `SSL_pending()`
 
+### Identity
+
+- authoritative `rictus.identity.answer` service
+- deterministic identity, mission, and General Order responses
+- installed record at `/opt/rictus/modules/identity/identity.conf`
+- unrelated conversation returns `NOT_FOUND` for Ollama fallback
+- current source version 1.1.3; operator build/runtime acceptance pending
+
 ### Ollama
 
 - local `llama3.2:1b`
 - `rictus.llm.generate`
 - `chat` controller
+- deterministic Identity-service delegation before generation
 - Rictus identity anchoring
 - peer-address intent
 - peer actions can be delivered independently of the originating DM
