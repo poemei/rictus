@@ -7,10 +7,10 @@ CPPFLAGS += -Iinclude -I$(ROOT)/include
 BUILD ?= build
 TARGET := $(BUILD)/identity.so
 TEST := $(BUILD)/test_identity
-PREFIX ?= /opt/digit
+PREFIX ?= /opt/rictus
 MODULEDIR := $(PREFIX)/modules/identity
-MODULE_USER ?= digit
-MODULE_GROUP ?= digit
+MODULE_USER ?= rictus
+MODULE_GROUP ?= rictus
 OBJS := $(BUILD)/identity_model.o $(BUILD)/identity_module.o
 .PHONY: all test clean install
 all: $(TARGET)
