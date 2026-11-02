@@ -74,7 +74,10 @@ Current source implementation:
 - `DENY` and `ESCALATE` cannot reach the executor boundary
 - only `ALLOW` reaches the deliberately suppressed executor stub
 - no operational restart/stop/deploy authority has been granted
-- 1.0.0 decision behavior was operator-observed through the live client; 1.0.1 broker enforcement remains pending build/runtime/operator acceptance
+- 1.0.0 decision behavior was operator-observed through the live client
+- 1.0.1 broker enforcement was operator-observed through the live client
+- formal acceptance of 1.0.1 has not been separately recorded
+- further compliance development is paused for the night by operator direction
 
 This is the proving stage before Rictus receives operational control capability.
 
@@ -172,6 +175,23 @@ Ezra remains intentionally small and compliant.
 Rich context awareness does not imply conversational verbosity.
 
 No expansion of Ezra behavior is authorized by this roadmap.
+
+
+### Current stopping point — 2026-11-01
+
+Operator-observed Compliance 1.0.1 behavior:
+
+- `ALLOW / CORE.GO1_GO2_GO3 -> executor=REACHED execution=SUPPRESSED`
+- `DENY / CORE.GO1 -> executor=BLOCKED execution=SUPPRESSED`
+- `ESCALATE / CORE.GO2 -> executor=BLOCKED execution=SUPPRESSED`
+- `ESCALATE / CORE.GO3 -> executor=BLOCKED execution=SUPPRESSED`
+
+No operational executor was enabled.
+
+The next unresolved design stage is to replace manually supplied proving flags
+with authoritative runtime sources for mission state, active policies,
+directives/instructions, and delegated authority. This stage is not authorized
+for implementation by the roadmap and is currently paused by operator direction.
 
 ## Deferred / not currently selected
 
