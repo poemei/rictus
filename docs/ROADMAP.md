@@ -68,11 +68,13 @@ Operator-observed DSD path:
 Current source implementation:
 
 - Core exposes the existing fail-closed General Order evaluator as `stnlabz.policy.evaluate`
-- compliance module 1.0.0 provides explicit evaluate-only scenarios
+- compliance module 1.0.1 provides explicit evaluate-only scenarios and a mandatory control-request broker
 - GO1, GO2 and GO3 are evaluated independently from Ollama
 - every proving response reports `execution=SUPPRESSED`
+- `DENY` and `ESCALATE` cannot reach the executor boundary
+- only `ALLOW` reaches the deliberately suppressed executor stub
 - no operational restart/stop/deploy authority has been granted
-- source is implemented; build, activation, operator testing and acceptance are pending
+- 1.0.0 decision behavior was operator-observed through the live client; 1.0.1 broker enforcement remains pending build/runtime/operator acceptance
 
 This is the proving stage before Rictus receives operational control capability.
 
