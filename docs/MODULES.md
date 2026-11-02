@@ -59,15 +59,21 @@ Default source root:
 
 ## Module: compliance
 
-**Version:** 1.0.0  
+**Version:** 1.0.1  
 **Location:** `modules/compliance/`  
-**Role:** evaluate-only General Order proving gate
+**Role:** General Order proving gate and mandatory control-request broker
 
 ### Registered interface
 
-Command:
+Commands:
 
 `compliance`
+
+`control`
+
+Service:
+
+`rictus.control.request`
 
 ### Current responsibilities
 
@@ -77,9 +83,12 @@ Command:
 - exercise GO3 delegated-authority/escalation behavior
 - render `ALLOW`, `DENY`, or `ESCALATE`
 - always report `execution=SUPPRESSED`
+- block the executor boundary for `DENY` and `ESCALATE`
+- allow only `ALLOW` decisions to reach the suppressed executor stub
 
 The compliance module has no restart, stop, deployment, mutation, or other
-operational execution capability.
+operational execution capability. `executor=REACHED` means only that the
+General Order gate admitted the request to the no-op proving executor.
 
 ## Module: ollama
 
