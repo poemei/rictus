@@ -21,6 +21,31 @@ Rictus is a distinct agent derived from Digit's Core foundation. In their agent 
 Discussion, research, and speculative planning are not authorization to implement. Human direction determines requirements, changes, validation, and acceptance. Proposed designs should be checked against previously established decisions and revalidated before implementation.
 
 
+## General Order compliance proving status
+
+Rictus is currently proving that control decisions remain subordinate to the
+organization-wide STN-LABZ General Orders before operational control authority
+is granted.
+
+Current proven path:
+
+`proposed control action -> rictus.control.request -> stnlabz.policy.evaluate -> executor boundary`
+
+Compliance 1.0.1 has been operator-observed through the live Rictus client:
+
+- compliant request -> `ALLOW` and executor boundary reached
+- outside assigned mission -> `DENY / CORE.GO1` and executor blocked
+- policy conflict -> `ESCALATE / CORE.GO2` and executor blocked
+- outside delegated authority -> `ESCALATE / CORE.GO3` and executor blocked
+- all current proving outcomes -> `execution=SUPPRESSED`
+
+The current executor is deliberately inert. Rictus has not been granted restart,
+stop, deployment, mutation, or other new operational control capability.
+
+The next stage—authoritative mission, policy, directive, instruction, and
+delegated-authority sources—is paused pending further operator direction.
+
+
 ## Core DSD diagnostics
 
 Rictus Core retains a bounded in-memory last-request diagnostic trace per sender.
