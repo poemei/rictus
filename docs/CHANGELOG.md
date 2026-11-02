@@ -230,3 +230,32 @@ Relevant behavior:
 - candidate intelligence evidence is written to `/var/log/rictus/rictus.log`
 
 Current module version remains 1.0.5.
+
+
+## 2026-11-01
+
+### Identity 1.1.3 and Ollama 1.0.10 — deterministic foundational self-knowledge
+
+**Implemented; operator build/runtime acceptance pending**
+
+Rictus's pushed Identity module was audited and found to contain incomplete Digit-to-Rictus conversion artifacts plus no active integration from Ollama's `chat` controller.
+
+Corrections:
+
+- added the public `rictus.identity.answer` service contract
+- corrected Identity installation from `/opt/digit` to `/opt/rictus`
+- corrected module ownership from `digit:digit` to `rictus:rictus`
+- corrected the role to `Control Automated Agent`
+- corrected the mission record to: `I exist to help STN-LABZ observe, understand, coordinate, and control operational activity across its systems.`
+- converted natural-language identity parsing from Digit/digicat forms to Rictus forms
+- aligned standalone tests with the actual Rictus data record
+- advanced Identity from 1.1.2 to **1.1.3**
+- updated Ollama `chat` so it invokes `rictus.identity.answer` before model generation
+- Identity `OK` returns the deterministic answer immediately
+- Identity `NOT_FOUND` permits normal Ollama language/inference fallback
+- other Identity service failures fail closed
+- advanced Ollama from 1.0.9 to **1.0.10**
+
+Core routing and shared ABI 1.5 are unchanged.
+
+This change specifically removes Ollama as the authority for simple foundational questions such as `what is your mission?`.
