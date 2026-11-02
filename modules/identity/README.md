@@ -1,25 +1,43 @@
-# Digit Identity & Mission — 1.1.2
+# Rictus Identity & Mission — 1.1.3
 
-Director-authorized mission, identity and General Order responses are now owned by the standalone Identity module's installed data file, `/opt/digit/modules/identity/identity.conf`.
+Rictus mission, identity, and General Order responses are owned by the standalone Identity module's installed data file:
 
-- `mission`, `name`, `organization`, `role`, and `order1`/`order2`/`order3` are all required; invalid or incomplete data causes module startup to fail.
-- `/identity mission`, `/identity who`, `/identity orders`, `/identity first general order`, `/identity second general order`, `/identity third general order` return data-backed, deterministic responses.
-- Natural-language questions like `digicat, what is your mission?`, `digicat, who are you?`, and `digicat, what is your 1st/2nd/3rd general order?` route through the existing Ollama chat controller to `digit.identity.answer` via Core's existing service registry; matching questions never reach LLM generation.
-- The previously added Core service `digit.root.orders.read` has been **removed**. Protected Root identity and its own governing orders remain unchanged inside Core; the module holds operator-approved conversational answer copies. Keep the copies synchronized by explicit Director approval if governing orders ever change.
-- IRC and the shared ABI are unchanged. No module-to-module direct binding.
-- Module record is read at startup. For already installed systems, install the updated record as well as the new identity binary; simply replacing the binary is insufficient.
+`/opt/rictus/modules/identity/identity.conf`
+
+- `mission`, `name`, `organization`, `role`, and `order1`/`order2`/`order3` are required; invalid or incomplete data causes startup failure.
+- `/identity mission`, `/identity who`, `/identity orders`, and individual General Order requests are data-backed and deterministic.
+- Natural-language questions such as `what is your mission?`, `rictus, what is your mission?`, and `rictus: who are you?` are recognized by `rictus.identity.answer`.
+- Rictus Ollama consults the Identity service before model generation. Matching identity/mission questions never reach Ollama generation.
+- Unmatched conversation returns `NOT_FOUND` from Identity and continues to Ollama for language/inference.
+- Core and shared ABI 1.5 are unchanged. No direct module-to-module binding is used.
+- The module record is loaded at startup. Installing only the binary without the matching `identity.conf` is insufficient.
+
+Current record:
+
+- Name: Rictus
+- Organization: STN-LABZ
+- Role: Control Automated Agent
+- Mission: `I exist to help STN-LABZ observe, understand, coordinate, and control operational activity across its systems.`
 
 ## Operator checks
 
 ```sh
-make clean && make && make test
-make -C modules/identity clean && make -C modules/identity && make -C modules/identity test
+make -C modules/identity clean all test
+sudo make -C modules/identity install
+
+make -C modules/ollama clean all test
+sudo make -C modules/ollama install
 ```
 
-Rebuild/install under operator control and reactivate Identity v1.1.1. Ollama v1.0.5 can remain unchanged. Test `/identity first general order` and `what is your first general order?`, plus second and third; confirm unrelated chat is still routed to Ollama.
+Then verify through the normal Rictus client:
 
-Source committed; local build, actual deployment, qualification, and runtime acceptance have not been verified here.
+```text
+rictus: what is your mission?
+rictus: who are you?
+rictus: what is your first general order?
+rictus: how are you?
+```
 
-## Response wording in 1.1.2
+The first three should resolve deterministically through Identity. Unrelated chat such as `how are you?` should fall through to Ollama.
 
-The General Orders are rendered in first person, for example: `My first General Order is clear: I must remain at my assigned mission.` The approved records remain unchanged. Rebuild, test and hotload are pending operator verification.
+Source version 1.1.3. Build, qualification, activation, and operator acceptance remain separate evidence gates.
