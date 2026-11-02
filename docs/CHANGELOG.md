@@ -329,7 +329,7 @@ boundary.
 
 ### Compliance 1.0.1 — mandatory control-request broker
 
-**Implemented; build/runtime/operator acceptance pending**
+**Implemented and operator-observed; explicit acceptance not separately recorded**
 
 Compliance 1.0.1 adds the registered service:
 
@@ -357,3 +357,32 @@ policy discovery, directive discovery, or authority verification. Authoritative
 sources for those inputs are required before operational status.
 
 DSD and shared ABI 1.5 were not changed.
+
+
+### Compliance 1.0.1 — live broker enforcement evidence and development hold
+
+**Operator-observed; further development paused**
+
+The operator exercised the `/control` broker through the live Rictus client.
+
+Observed outcomes:
+
+- compliant request -> `ALLOW / CORE.GO1_GO2_GO3`, `executor=REACHED`
+- outside assigned mission -> `DENY / CORE.GO1`, `executor=BLOCKED`
+- policy conflict -> `ESCALATE / CORE.GO2`, `executor=BLOCKED`
+- outside delegated authority -> `ESCALATE / CORE.GO3`, `executor=BLOCKED`
+
+Every observed result reported `execution=SUPPRESSED`.
+
+This demonstrates that the current broker prevents `DENY` and `ESCALATE`
+decisions from reaching the executor boundary while permitting only `ALLOW`
+to reach the deliberately inert proving executor.
+
+No operational restart, stop, deployment, mutation, or other control authority
+was enabled.
+
+The operator directed development to hold for the night. The next unresolved
+stage is authoritative sourcing of mission state, policies,
+directives/instructions, and delegated authority so compliance decisions no
+longer depend on manually supplied proving flags. That stage remains
+unimplemented and is not authorized by this documentation entry.
