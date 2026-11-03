@@ -14,6 +14,8 @@ TARGET := $(BUILD_DIR)/$(MODULE_NAME).so
 TEST_TARGET := $(BUILD_DIR)/test_intelligence
 
 PREFIX ?= /opt/rictus
+INSTALL_USER ?= rictus
+INSTALL_GROUP ?= rictus
 MODULEDIR ?= $(PREFIX)/modules/$(MODULE_NAME)
 STATEDIR ?= $(PREFIX)/state
 INTELLOGDIR ?= /var/log/rictus
@@ -43,9 +45,10 @@ test: $(TEST_TARGET)
 	./$(TEST_TARGET)
 
 install: $(TARGET)
-	install -d $(MODULEDIR) $(STATEDIR) $(INTELLOGDIR)
-	install -m 0644 module.conf $(MODULEDIR)/module.conf
-	install -m 0755 $(TARGET) $(MODULEDIR)/$(MODULE_NAME).so
+	install -d -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m 0755 $(MODULEDIR)
+	install -d -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m 0750 $(STATEDIR) $(INTELLOGDIR)
+	install -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m 0644 module.conf $(MODULEDIR)/module.conf
+	install -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m 0755 $(TARGET) $(MODULEDIR)/$(MODULE_NAME).so
 
 uninstall:
 	rm -f $(MODULEDIR)/$(MODULE_NAME).so $(MODULEDIR)/module.conf
