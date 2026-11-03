@@ -23,6 +23,8 @@ BUILD_DIR ?= build
 TARGET ?= bin/rictus
 
 PREFIX ?= /opt/rictus
+INSTALL_USER ?= rictus
+INSTALL_GROUP ?= rictus
 BINDIR ?= $(PREFIX)/bin
 LOGDIR ?= $(PREFIX)/logs
 MODULEDIR ?= $(PREFIX)/modules
@@ -60,8 +62,9 @@ $(BUILD_DIR)/abi/%.o: $(ABI_SRC_DIR)/%.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -c $< -o $@
 
 install: $(TARGET)
-	install -d $(BINDIR) $(LOGDIR) $(MODULEDIR) $(CONFIGDIR) $(STATEDIR)
-	install -m 0755 $(TARGET) $(BINDIR)/rictus
+	install -d -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m 0755 $(BINDIR) $(MODULEDIR) $(CONFIGDIR)
+	install -d -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m 0750 $(LOGDIR) $(STATEDIR)
+	install -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m 0755 $(TARGET) $(BINDIR)/rictus
 
 uninstall:
 	rm -f $(BINDIR)/rictus
