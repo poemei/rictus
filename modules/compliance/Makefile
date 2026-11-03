@@ -9,6 +9,8 @@ BUILD ?= build
 TARGET := $(BUILD)/compliance.so
 TEST := $(BUILD)/test_compliance
 PREFIX ?= /opt/rictus
+INSTALL_USER ?= rictus
+INSTALL_GROUP ?= rictus
 MODULEDIR := $(PREFIX)/modules/compliance
 OBJS := $(BUILD)/compliance_model.o $(BUILD)/compliance_module.o
 
@@ -30,9 +32,9 @@ test: $(TEST)
 	./$(TEST)
 
 install: $(TARGET)
-	install -d -o root -g root -m 0755 "$(MODULEDIR)"
-	install -o root -g root -m 0644 module.conf "$(MODULEDIR)/module.conf"
-	install -o root -g root -m 0755 "$(TARGET)" "$(MODULEDIR)/compliance.so"
+	install -d -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m 0755 "$(MODULEDIR)"
+	install -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m 0644 module.conf "$(MODULEDIR)/module.conf"
+	install -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m 0755 "$(TARGET)" "$(MODULEDIR)/compliance.so"
 
 uninstall:
 	rm -f "$(MODULEDIR)/compliance.so" "$(MODULEDIR)/module.conf"
