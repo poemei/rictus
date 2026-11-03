@@ -11,7 +11,7 @@ INSTALL_USER ?= rictus
 INSTALL_GROUP ?= rictus
 MODULEDIR ?= $(PREFIX)/modules/web
 
-CPPFLAGS += -I$(ROOT)/include
+CPPFLAGS += -Isrc -I$(ROOT)/include
 TARGET := $(BUILD_DIR)/web.so
 TEST_TARGET := $(BUILD_DIR)/test_web
 
