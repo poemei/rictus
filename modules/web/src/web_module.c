@@ -27,6 +27,7 @@ static const stnlabz_module_host_t *host;
 static pthread_t worker;
 static atomic_int stopping;
 static int worker_started;
+static int listen_fd = -1;
 static char secret[RICTUS_WEB_TOKEN_MAX + 1U];
 
 /* Credentials are read once at activation, not supplied through the web API. */
@@ -161,38 +162,20 @@ static void serve_one(int fd)
 
 static void *serve_loop(void *unused)
 {
-    int listener;
-    int one = 1;
-    struct sockaddr_in address;
     (void)unused;
-    listener = socket(AF_INET, SOCK_STREAM, 0);
-    if (listener < 0) return NULL;
-    (void)setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
-    memset(&address, 0, sizeof address);
-    address.sin_family = AF_INET;
-    address.sin_port = htons(WEB_PORT);
-    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    if (bind(listener, (struct sockaddr *)&address, sizeof address) != 0 ||
-        listen(listener, 8) != 0) {
-        fprintf(stderr, "[WEB] loopback bind failed; transport inactive\n");
-        close(listener);
-        return NULL;
-    }
-    fprintf(stderr, "[WEB] listening on 127.0.0.1:%d\n", WEB_PORT);
     while (!atomic_load(&stopping)) {
-        struct pollfd pfd = {listener, POLLIN, 0};
+        struct pollfd pfd = {listen_fd, POLLIN, 0};
         int ready = poll(&pfd, 1, 250);
         if (ready < 0 && errno == EINTR) continue;
         if (ready <= 0) continue;
         if (pfd.revents & POLLIN) {
-            int fd = accept(listener, NULL, NULL);
+            int fd = accept(listen_fd, NULL, NULL);
             if (fd >= 0) {
                 serve_one(fd);
                 close(fd);
             }
         }
     }
-    close(listener);
     return NULL;
 }
 
@@ -218,15 +201,34 @@ static stnlabz_module_result_t start(const stnlabz_module_host_t *h)
         fprintf(stderr, "[WEB] missing or unsafe token file\n");
         return STNLABZ_MODULE_ERR_START_FAILED;
     }
+    {
+        struct sockaddr_in address;
+        int one = 1;
+        listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+        if (listen_fd < 0) goto start_failed;
+        (void)setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
+        memset(&address, 0, sizeof address);
+        address.sin_family = AF_INET;
+        address.sin_port = htons(WEB_PORT);
+        address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        if (bind(listen_fd, (struct sockaddr *)&address, sizeof address) != 0 ||
+            listen(listen_fd, 8) != 0) goto start_failed;
+    }
     host = h;
     atomic_store(&stopping, 0);
-    if (pthread_create(&worker, NULL, serve_loop, NULL) != 0) {
-        host = NULL;
-        memset(secret, 0, sizeof secret);
-        return STNLABZ_MODULE_ERR_START_FAILED;
-    }
+    if (pthread_create(&worker, NULL, serve_loop, NULL) != 0)
+        goto start_failed;
+    fprintf(stderr, "[WEB] listening on 127.0.0.1:%d\n", WEB_PORT);
     worker_started = 1;
     return STNLABZ_MODULE_OK;
+
+start_failed:
+    if (listen_fd >= 0) close(listen_fd);
+    listen_fd = -1;
+    host = NULL;
+    memset(secret, 0, sizeof secret);
+    fprintf(stderr, "[WEB] loopback bind/start failed\n");
+    return STNLABZ_MODULE_ERR_START_FAILED;
 }
 
 static stnlabz_module_result_t stop(void)
@@ -236,6 +238,8 @@ static stnlabz_module_result_t stop(void)
         (void)pthread_join(worker, NULL);
         worker_started = 0;
     }
+    if (listen_fd >= 0) close(listen_fd);
+    listen_fd = -1;
     host = NULL;
     memset(secret, 0, sizeof secret);
     return STNLABZ_MODULE_OK;
