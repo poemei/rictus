@@ -2,6 +2,7 @@
 """Test the control evidence handoff without granting policy permissions.
 
 [AI:GPT-6 | 2026-11-04 05:33:00 UTC]
+[AI:GPT-6 | 2026-11-04 05:35:20 UTC] Regress whole-term control evidence selection.
 """
 import unittest
 
@@ -47,6 +48,17 @@ class ControlEvidenceTests(unittest.TestCase):
     def test_no_match_does_not_grant_permission(self):
         result = control_evidence(CATALOG, "deploy", "unknown")
         self.assertEqual(result["searches"]["deploy"]["total_matches"], 0)
+        self.assertEqual(result["decision"], "NOT_EVALUATED")
+
+    def test_whole_term_excludes_digital_but_preserves_digit(self):
+        catalog = {"documents": [
+            {"file": "noise.txt", "text": "digital documentation and restartable services"},
+            {"file": "target.txt", "text": "Restart Digit. DIGIT-digit is mentioned."},
+        ]}
+        result = control_evidence(catalog, "restart", "digit")
+        self.assertEqual(result["searches"]["restart"]["total_matches"], 1)
+        self.assertEqual(result["searches"]["digit"]["total_matches"], 1)
+        self.assertEqual(result["searches"]["digit"]["match_mode"], "whole_term")
         self.assertEqual(result["decision"], "NOT_EVALUATED")
 
     def test_invalid_inputs_fail(self):
