@@ -22,6 +22,11 @@ def export_index(catalog):
         root = doc.get("root_document_id")
         if not isinstance(root, str) or not IDENTIFIER.fullmatch(root):
             raise ValueError("Invalid document root ID")
+        revision = doc.get("revision_id", "NONE")
+        source = root if revision in ("NONE", "R0", root + ".R0") else revision
+        digest = doc.get("sha256_file_bytes", "")
+        if not isinstance(source, str) or len(source) >= 64 or not isinstance(digest, str) or len(digest) != 64:
+            raise ValueError("Invalid source identity or hash")
         for number, line in enumerate(doc["text"].splitlines(), start=1):
             clean = line.replace("\t", " ").replace("\r", " ")
             if len((root + "\t" + str(number) + "\t" + clean + "\n").encode("utf-8")) >= 4096:
