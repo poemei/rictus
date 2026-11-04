@@ -9,11 +9,6 @@ typedef struct {
     char actor[RICTUS_CONTROL_TEXT_MAX];
     char operation[RICTUS_CONTROL_TEXT_MAX];
     char target[RICTUS_CONTROL_TARGET_MAX];
-    char escalation_target[RICTUS_CONTROL_TEXT_MAX];
-    int within_mission;
-    int complies_with_policy;
-    int instruction_authorized;
-    int authority_granted;
     int context_verified;
 } rictus_control_request_t;
 
