@@ -11,9 +11,13 @@ typedef struct {
     const char *mission;         /* Assigned mission identifier. */
     const char *operation;       /* Operation being requested. */
     const char *module_id;       /* Target module, if applicable. */
+    int mission_known;
     int within_mission;
+    int policy_known;
     int complies_with_policy;
+    int instruction_known;
     int instruction_authorized;
+    int authority_known;
     int authority_granted;
     const char *escalation_target; /* Valid next-level contact supplied by operator policy. */
     const char *verification_source; /* Trusted Core caller provenance label. */
