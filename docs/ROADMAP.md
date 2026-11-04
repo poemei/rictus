@@ -68,7 +68,7 @@ Operator-observed DSD path:
 Current source implementation:
 
 - Core exposes the existing fail-closed General Order evaluator as `stnlabz.policy.evaluate`
-- compliance module 1.1.0 preserves explicit evaluate-only scenarios and adds a governance-backed control-request broker
+- compliance module 1.1.1 preserves explicit evaluate-only scenarios and uses a governance-backed control-request broker
 - GO1, GO2 and GO3 are evaluated independently from Ollama
 - every proving response reports `execution=SUPPRESSED`
 - `DENY` and `ESCALATE` cannot reach the executor boundary
@@ -80,7 +80,10 @@ Current source implementation:
 - 1.1.0 resolves governing facts from a `rictus:rictus`-owned installed governance record
 - missing mission/policy/instruction/authority facts become `CORE.UNKNOWN` and escalate
 - the live proving record grants no operational permission
-- 1.1.0 build/runtime/operator testing remains pending
+- 1.1.0 was operator-observed end-to-end and continuation was authorized
+- 1.1.1 verifies the assigned mission record through Identity before control evaluation
+- mission record verification does not itself prove an operation is within mission
+- 1.1.1 build/runtime/operator testing remains pending
 
 This is the proving stage before Rictus receives operational control capability.
 
@@ -191,10 +194,9 @@ Operator-observed Compliance 1.0.1 behavior:
 
 No operational executor was enabled.
 
-The current implementation stage is Compliance 1.1.0. The synthetic
+The current implementation stage is Compliance 1.1.1. The synthetic
 `/compliance` command still accepts proving flags, but the real `/control`
-path does not. It resolves mission, policy/directive, instruction, and authority
-facts from the installed governance record and escalates unknown state.
+path does not. It now verifies the installed assigned mission through Identity, then resolves mission scope, policy/directive, instruction, and authority facts from the installed governance record and escalates unknown state.
 
 This is still a proving source, not Mission Control integration. The installed
 record currently grants no operational control permission, and the executor
