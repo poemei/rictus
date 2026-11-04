@@ -16,6 +16,7 @@ typedef struct {
     int decision;
     int executor_reached;
     int execution_suppressed;
+    int assigned_mission_verified;
     int mission_known;
     int policy_known;
     int instruction_known;
