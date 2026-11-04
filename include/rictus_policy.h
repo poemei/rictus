@@ -14,9 +14,13 @@ typedef struct {
     char module_id[RICTUS_POLICY_MODULE_MAX];
     char escalation_target[RICTUS_POLICY_TEXT_MAX];
     char verification_source[RICTUS_POLICY_TEXT_MAX];
+    int mission_known;
     int within_mission;
+    int policy_known;
     int complies_with_policy;
+    int instruction_known;
     int instruction_authorized;
+    int authority_known;
     int authority_granted;
     int context_verified;
 } rictus_policy_evaluate_request_t;
