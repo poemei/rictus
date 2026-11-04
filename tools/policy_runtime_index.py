@@ -9,6 +9,9 @@ import re
 import sys
 
 IDENTIFIER = re.compile(r"^\d{8}\.\d+$")
+# [AI:GPT-6 | 2026-11-04 05:50:24 UTC]
+FILE_ROOT = re.compile(r"^(\d{8}\.\d+)(?:\.R\d+)?[_ .-]")
+# [End AI:GPT-6]
 
 
 def export_index(catalog):
@@ -20,8 +23,14 @@ def export_index(catalog):
         if not isinstance(doc, dict) or not isinstance(doc.get("text"), str):
             raise ValueError("Full-text policy catalog required")
         root = doc.get("root_document_id")
+        # [AI:GPT-6 | 2026-11-04 05:50:24 UTC]
         if not isinstance(root, str) or not IDENTIFIER.fullmatch(root):
-            raise ValueError("Invalid document root ID")
+            filename = doc.get("file", "")
+            match = FILE_ROOT.match(filename.rsplit("/", 1)[-1]) if isinstance(filename, str) else None
+            if not match:
+                raise ValueError("Invalid document root ID and no identifiable filename root")
+            root = match.group(1)
+        # [End AI:GPT-6]
         revision = doc.get("revision_id", "NONE")
         source = root if revision in ("NONE", "R0", root + ".R0") else revision
         digest = doc.get("sha256_file_bytes", "")
