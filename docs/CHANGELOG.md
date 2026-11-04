@@ -386,3 +386,50 @@ stage is authoritative sourcing of mission state, policies,
 directives/instructions, and delegated authority so compliance decisions no
 longer depend on manually supplied proving flags. That stage remains
 unimplemented and is not authorized by this documentation entry.
+
+
+### Compliance 1.1.0 — governance-backed control facts and unknown-state escalation
+
+**Implemented; build/runtime/operator acceptance pending**
+
+The operator resumed the previously paused compliance work.
+
+The real `rictus.control.request` contract no longer accepts caller-supplied
+mission, policy, instruction, or authority booleans.
+
+The explicit `/compliance` command remains available as a synthetic proving
+harness, but the real `/control <operation> <target>` path now resolves
+governing facts from:
+
+`/opt/rictus/modules/compliance/governance.conf`
+
+The root-owned governance record supports exact records for:
+
+- mission scope
+- policy state
+- directive state
+- instruction authorization
+- Rictus delegated authority
+- next-level escalation destination
+
+Core policy requests now distinguish known from unknown governing facts.
+
+If required governing state is incomplete, Core returns:
+
+`ESCALATE / CORE.UNKNOWN / governing_state_unknown`
+
+Unknown state therefore cannot become permission.
+
+The installed proving record currently defines only the next-level destination
+`STN6`. It contains no operational allow records. Synthetic ALLOW records exist
+only in module self-tests.
+
+The current executor remains deliberately suppressed. No restart, stop,
+deployment, mutation, or other operational control capability was enabled.
+
+Compliance module version advanced from 1.0.1 to **1.1.0**.
+
+The Compliance installer was also aligned with the actual root-owned Rictus
+installation model.
+
+Shared ABI 1.5 and DSD behavior were not changed.
