@@ -13,9 +13,8 @@
 
 #define WEB_VERSION_MAJOR 1U
 #define WEB_VERSION_MINOR 0U
-#define WEB_VERSION_PATCH 2U
-#define WEB_CONFIG "/opt/rictus/config/web.conf"
-#define WEB_URL_MAX 512U
+#define WEB_VERSION_PATCH 3U
+#define WEB_TRANSPORT_URL "http://127.0.0.1/chat/transport"
 #define WEB_REPLY_MAX 8192U
 #define WEB_ID_LENGTH 32U
 
@@ -28,35 +27,12 @@ static const stnlabz_module_host_t *module_host;
 static pthread_t worker;
 static atomic_int stop_requested;
 static int worker_started;
-static char transport_url[WEB_URL_MAX];
 
 static void sleep_interval(unsigned milliseconds)
 {
     struct timespec rest = {(time_t)(milliseconds / 1000U),
                             (long)((milliseconds % 1000U) * 1000000U)};
     while (nanosleep(&rest, &rest) != 0 && errno == EINTR) {}
-}
-
-static int config_load(void)
-{
-    FILE *stream = fopen(WEB_CONFIG, "r");
-    char line[WEB_URL_MAX + 32U];
-    size_t n;
-    if (!stream) return 0;
-    if (!fgets(line, sizeof line, stream)) { fclose(stream); return 0; }
-    if (fgetc(stream) != EOF) { fclose(stream); return 0; }
-    fclose(stream);
-    n = strlen(line);
-    while (n && (line[n-1] == '\n' || line[n-1] == '\r')) line[--n] = 0;
-    if (strncmp(line, "transport_url=https://", 22U) != 0) return 0;
-    if (n <= 30U || n - 14U >= sizeof transport_url) return 0;
-    for (size_t i = 14U; i < n; ++i) {
-        unsigned char c = (unsigned char)line[i];
-        if (c < 0x21U || c > 0x7eU || c == '"' || c == '\'' ||
-            c == '\\' || c == '@' || c == '#') return 0;
-    }
-    memcpy(transport_url, line + 14, n - 13U);
-    return 1;
 }
 
 static size_t capture(void *ptr, size_t size, size_t count, void *context)
@@ -84,7 +60,7 @@ static int http_post(const char *payload, http_buffer_t *buffer, long *status)
     if (!curl) return 0;
     headers = curl_slist_append(headers, "Content-Type: application/json");
     headers = curl_slist_append(headers, "Accept: application/json");
-    curl_easy_setopt(curl, CURLOPT_URL, transport_url);
+    curl_easy_setopt(curl, CURLOPT_URL, WEB_TRANSPORT_URL);
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, payload);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)strlen(payload));
@@ -262,7 +238,7 @@ static stnlabz_module_result_t qualify(stnlabz_module_qualification_result_t *q)
 
 static stnlabz_module_result_t start(const stnlabz_module_host_t *host)
 {
-    if (!host || !host->invoke_service || !config_load())
+    if (!host || !host->invoke_service)
         return STNLABZ_MODULE_ERR_START_FAILED;
     if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK)
         return STNLABZ_MODULE_ERR_START_FAILED;
@@ -286,7 +262,6 @@ static stnlabz_module_result_t stop(void)
         worker_started = 0;
     }
     module_host = NULL;
-    memset(transport_url, 0, sizeof transport_url);
     curl_global_cleanup();
     return STNLABZ_MODULE_OK;
 }
