@@ -227,3 +227,22 @@ activation and operator console test remain separate gates. The generated
 `policy_index.tsv` must be installed separately by an authorized operator for
 `index=AVAILABLE` to appear; this commit does not install it.
 <!-- [End AI:GPT-6] -->
+
+<!-- [AI:GPT-6 | 2026-11-04 06:05:00 UTC] -->
+## Same-line evidence correlation — Compliance 1.1.4
+
+`/policy-evidence <operation> <target>` now also reports
+`same_line=<count> joint_source=<revision>:<line>`. It counts indexed
+lines containing both exact terms, preserving the first joint match's source
+revision, line and SHA-256 in the internal service response. This is
+literal same-line correlation, **not** a determination of policy
+applicability, governing revision, approval or permission.
+
+Independent operation and target counts remain visible for comparison.
+A joint count of zero does not establish that no applicable policy exists:
+relevant provisions may span multiple lines or documents.
+
+The existing `/control` decision process and its suppressed executor are
+unchanged. Build, qualification, module admission and client acceptance
+remain separate operator gates.
+<!-- [End AI:GPT-6] -->
