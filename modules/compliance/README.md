@@ -204,3 +204,26 @@ This stage establishes internal runtime access to source-linked evidence. The
 service is not exposed as a new IRC command and does not yet provide an
 end-to-end operator client query.
 <!-- [End AI:GPT-6] -->
+
+<!-- [AI:GPT-6 | 2026-11-04 06:00:00 UTC] -->
+## Operator policy evidence query — Compliance 1.1.3
+
+The source now registers a read-only console route:
+`/policy-evidence <operation> <target>`
+
+For example, `/policy-evidence restart digit` invokes the internal
+`rictus.policy.evidence` service and returns match counts, first source
+document identifiers and line numbers, with
+`decision=NOT_EVALUATED execution=SUPPRESSED`. Absent index returns
+`index=UNAVAILABLE`. Invalid syntax returns usage text.
+
+The client response is intentionally a concise summary: it does not show the
+full index, interpret matches, select authoritative revisions, or grant permission.
+The underlying service continues to provide source hashes. No changes to
+`/control` or Core are included.
+
+**Source stage only.** Compilation, module qualification, admission, runtime
+activation and operator console test remain separate gates. The generated
+`policy_index.tsv` must be installed separately by an authorized operator for
+`index=AVAILABLE` to appear; this commit does not install it.
+<!-- [End AI:GPT-6] -->
