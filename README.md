@@ -42,8 +42,10 @@ Compliance 1.0.1 has been operator-observed through the live Rictus client:
 The current executor is deliberately inert. Rictus has not been granted restart,
 stop, deployment, mutation, or other new operational control capability.
 
-The next stage—authoritative mission, policy, directive, instruction, and
-delegated-authority sources—is paused pending further operator direction.
+Compliance 1.1.0 is the active source stage. The real `/control` path no longer
+accepts caller-supplied compliance booleans and resolves governing facts from
+the root-owned installed governance record. Missing facts remain UNKNOWN and
+escalate; no operational executor is enabled.
 
 
 ## Core DSD diagnostics
