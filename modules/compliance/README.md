@@ -1,4 +1,4 @@
-# Rictus Compliance Proving Gate — 1.1.0
+# Rictus Compliance Proving Gate — 1.1.1
 
 This module proves that Rictus control decisions remain subordinate to the
 organization-wide STN-LABZ General Orders before operational control capability
@@ -70,17 +70,21 @@ The current executor remains a no-op proving stub.
 
 ## Unknown state
 
-Compliance 1.1.0 explicitly distinguishes whether each governing fact is known.
+Compliance 1.1.1 verifies the assigned mission record through the existing authoritative Identity service before evaluating control state. It still distinguishes whether each governing fact is known.
 
 The response reports:
 
-`known=<mission>/<policy>/<instruction>/<authority>`
+`assigned_mission=VERIFIED`
+
+when Identity returns the installed assigned mission record successfully, plus:
+
+`known=<mission-scope>/<policy>/<instruction>/<authority>`
 
 For example:
 
-`known=0/0/0/0`
+`assigned_mission=VERIFIED known=0/0/0/0`
 
-means none of the required facts were established.
+means Rictus's assigned mission record is present and verified through Identity, but the requested operation's mission applicability, policy/directive state, instruction authorization, and delegated authority are still unestablished.
 
 Core treats incomplete governing state as:
 
@@ -127,7 +131,7 @@ escalation|STN6
 It grants **no** restart, stop, deployment, mutation, or other operational
 permission.
 
-Therefore, after 1.1.0 is built and installed, a request such as:
+Therefore, after 1.1.1 is built and installed, a request such as:
 
 ```text
 /control restart digit
@@ -141,15 +145,10 @@ installed as operational authority.
 
 ## Build and install
 
-Because 1.1.0 extends the Core policy request contract to represent known versus
-unknown governing facts, rebuild Core and the Compliance module:
+Because the Core known/unknown contract is already present from 1.1.0, this 1.1.1 step changes Compliance only. Rebuild the Compliance module:
 
 ```sh
-make clean
-make
 make -C modules/compliance clean all test
-
-sudo make install
 sudo make -C modules/compliance install
 ```
 
