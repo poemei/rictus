@@ -26,6 +26,25 @@ static int token_match(const char *line, const char *word)
     return 0;
 }
 
+int rictus_policy_index_selftest(unsigned *executed, unsigned *passed,
+    int *negative_executed, int *negative_passed)
+{
+    unsigned e = 0U, p = 0U;
+    int ne = 0, np = 0;
+    ++e;
+    if (token_match("Digit may require restart.", "digit")) ++p;
+    ++e;
+    if (token_match("restart Digit", "restart")) ++p;
+    ne = 2;
+    np += !token_match("Digital documentation", "digit");
+    np += !token_match("restartable process", "restart");
+    if (executed) *executed = e;
+    if (passed) *passed = p;
+    if (negative_executed) *negative_executed = ne;
+    if (negative_passed) *negative_passed = np;
+    return e == p && ne == np;
+}
+
 int rictus_policy_index_scan(const char *path, const char *operation,
     const char *target, rictus_policy_evidence_response_t *result)
 {
