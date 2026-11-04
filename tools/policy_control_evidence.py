@@ -2,6 +2,7 @@
 """Produce a read-only policy evidence packet for a proposed control request.
 
 [AI:GPT-6 | 2026-11-04 05:32:00 UTC]
+[AI:GPT-6 | 2026-11-04 05:35:20 UTC] Use whole-term evidence search for control inputs.
 """
 import argparse
 import json
@@ -24,7 +25,7 @@ def control_evidence(catalog, operation, target, limit=25):
     if not isinstance(limit, int) or not 1 <= limit <= 200:
         raise ValueError("Limit must be between 1 and 200")
     terms = list(dict.fromkeys((operation.casefold(), target.casefold())))
-    queries = {term: lookup(catalog, term, limit=limit) for term in terms}
+    queries = {term: lookup(catalog, term, limit=limit, whole_term=True) for term in terms}
     return {
         "operation": operation, "target": target,
         "corpus_documents_inspected": len(docs),
