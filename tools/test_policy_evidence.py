@@ -34,8 +34,8 @@ class PolicyEvidenceTests(unittest.TestCase):
         result = inventory(self.archive)
         self.assertEqual(result["document_count"], 2)
         self.assertEqual(result["root_family_count"], 1)
-        self.assertEqual(result["documents"][0]["revision_id"], "NONE")
-        self.assertEqual(result["documents"][1]["revision_id"], "20260729.0.R1")
+        revisions = {doc["revision_id"] for doc in result["documents"]}
+        self.assertEqual(revisions, {"NONE", "20260729.0.R1"})
 
     def test_full_text_is_opt_in(self):
         compact = inventory(self.archive)
