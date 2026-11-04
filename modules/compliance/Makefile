@@ -9,8 +9,8 @@ BUILD ?= build
 TARGET := $(BUILD)/compliance.so
 TEST := $(BUILD)/test_compliance
 PREFIX ?= /opt/rictus
-INSTALL_USER ?= root
-INSTALL_GROUP ?= root
+INSTALL_USER ?= rictus
+INSTALL_GROUP ?= rictus
 MODULEDIR := $(PREFIX)/modules/compliance
 OBJS := $(BUILD)/compliance_model.o $(BUILD)/governance_model.o $(BUILD)/compliance_module.o
 
