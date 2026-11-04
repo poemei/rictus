@@ -15,8 +15,10 @@ typedef struct {
     unsigned operation_matches;
     unsigned target_matches;
     char operation_document[64];
+    char operation_sha256[65];
     unsigned operation_line;
     char target_document[64];
+    char target_sha256[65];
     unsigned target_line;
 } rictus_policy_evidence_response_t;
 /* [End AI:GPT-6] */
