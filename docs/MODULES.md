@@ -59,7 +59,7 @@ Default source root:
 
 ## Module: compliance
 
-**Version:** 1.0.1  
+**Version:** 1.1.0  
 **Location:** `modules/compliance/`  
 **Role:** General Order proving gate and mandatory control-request broker
 
@@ -77,7 +77,8 @@ Service:
 
 ### Current responsibilities
 
-- submit operator-defined test scenarios to Core's `stnlabz.policy.evaluate`
+- retain `/compliance` as an operator-defined synthetic test harness
+- resolve real `/control` governing facts from `/opt/rictus/modules/compliance/governance.conf`
 - exercise GO1 mission discipline
 - exercise GO2 policy/instruction compliance
 - exercise GO3 delegated-authority/escalation behavior
@@ -85,6 +86,9 @@ Service:
 - always report `execution=SUPPRESSED`
 - block the executor boundary for `DENY` and `ESCALATE`
 - allow only `ALLOW` decisions to reach the suppressed executor stub
+- represent mission, policy/directive, instruction, and authority as known/unknown facts
+- escalate incomplete governing state as `CORE.UNKNOWN`
+- reject caller-supplied compliance flags on `rictus.control.request`
 
 The compliance module has no restart, stop, deployment, mutation, or other
 operational execution capability. `executor=REACHED` means only that the
