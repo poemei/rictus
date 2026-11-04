@@ -33,7 +33,6 @@ static atomic_int stopping;
 static int worker_started;
 static int listen_fd = -1;
 static SSL_CTX *web_tls_ctx;
-static SSL *web_tls_session;
 static char secret[RICTUS_WEB_TOKEN_MAX + 1U];
 
 /* Credentials are read once at activation, not supplied through the web API. */
