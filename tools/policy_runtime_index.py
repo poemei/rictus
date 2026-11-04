@@ -32,7 +32,9 @@ def export_index(catalog):
             root = match.group(1)
         # [End AI:GPT-6]
         revision = doc.get("revision_id", "NONE")
-        source = root if revision in ("NONE", "R0", root + ".R0") else revision
+        # [AI:GPT-6 | 2026-11-04 05:51:17 UTC]
+        source = root if revision in ("", None, "NONE", "R0", root + ".R0") else revision
+        # [End AI:GPT-6]
         digest = doc.get("sha256_file_bytes", "")
         if not isinstance(source, str) or len(source) >= 64 or not isinstance(digest, str) or len(digest) != 64:
             raise ValueError("Invalid source identity or hash")
