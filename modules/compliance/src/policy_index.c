@@ -46,7 +46,7 @@ int rictus_policy_index_scan(const char *path, const char *operation,
     }
     response.index_available = 1;
     while (fgets(buffer, sizeof buffer, file)) {
-        char *tab1, *tab2, *text;
+        char *tab1, *tab2, *tab3, *text, *sha;
         unsigned line_no;
         size_t n = strlen(buffer);
         if (!n || (n == sizeof buffer - 1U && buffer[n - 1U] != '\n')) {
@@ -65,12 +65,20 @@ int rictus_policy_index_scan(const char *path, const char *operation,
             return 0;
         }
         *tab2++ = 0;
-        text = tab2;
+        tab3 = strchr(tab2, '\t');
+        if (!tab3 || (size_t)(tab3 - tab2) != 64U) {
+            fclose(file);
+            return 0;
+        }
+        *tab3++ = 0;
+        sha = tab2;
+        text = tab3;
         if (token_match(text, operation)) {
             ++response.operation_matches;
             if (!response.operation_document[0]) {
                 memcpy(response.operation_document, buffer, strlen(buffer) + 1U);
                 response.operation_line = line_no;
+                memcpy(response.operation_sha256, sha, 65U);
             }
         }
         if (token_match(text, target)) {
@@ -78,6 +86,7 @@ int rictus_policy_index_scan(const char *path, const char *operation,
             if (!response.target_document[0]) {
                 memcpy(response.target_document, buffer, strlen(buffer) + 1U);
                 response.target_line = line_no;
+                memcpy(response.target_sha256, sha, 65U);
             }
         }
     }
