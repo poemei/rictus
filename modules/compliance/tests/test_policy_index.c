@@ -17,8 +17,12 @@ static int test_read_only_index(void)
     if (fd < 0) return 0;
     stream = fdopen(fd, "w");
     if (!stream) { close(fd); unlink(path); return 0; }
-    if (fputs("20260729.0\t12\tDigital documentation does not restart systems.\n"
-              "20260805.0\t7\tDigit may require an authorized restart.\n",
+    if (fputs("20260729.0\t12\t" 
+              "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\t"
+              "Digital documentation does not restart systems.\n"
+              "20260805.0.R1\t7\t"
+              "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\t"
+              "Digit may require an authorized restart.\n",
               stream) < 0 || fclose(stream) != 0) {
         unlink(path);
         return 0;
@@ -27,7 +31,9 @@ static int test_read_only_index(void)
         result.index_available == 1 &&
         result.operation_matches == 2 &&
         result.target_matches == 1 &&
-        !strcmp(result.target_document, "20260805.0") &&
+        !strcmp(result.target_document, "20260805.0.R1") &&
+        !strcmp(result.target_sha256,
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb") &&
         result.target_line == 7U) ok = 1;
     unlink(path);
     return ok;
