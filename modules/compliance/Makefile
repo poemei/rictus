@@ -38,7 +38,7 @@ install: $(TARGET)
 	install -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m 0755 "$(TARGET)" "$(MODULEDIR)/compliance.so"
 
 uninstall:
-	 rm -f "$(MODULEDIR)/compliance.so" "$(MODULEDIR)/module.conf" "$(MODULEDIR)/governance.conf"
+	rm -f "$(MODULEDIR)/compliance.so" "$(MODULEDIR)/module.conf" "$(MODULEDIR)/governance.conf"
 
 clean:
 	rm -rf $(BUILD)
