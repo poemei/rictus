@@ -94,7 +94,7 @@ Unknown state never implies permission.
 
 ## Governance record format
 
-The installed record is root-owned and line-oriented:
+The installed record is owned by `rictus:rictus` and line-oriented:
 
 ```text
 escalation|<next-level>
@@ -153,7 +153,7 @@ sudo make install
 sudo make -C modules/compliance install
 ```
 
-The Compliance installer uses the actual Rictus ownership model: `root:root`.
+The Compliance installer uses the actual Rictus ownership model: `rictus:rictus`.
 
 Source implementation, compilation, qualification, activation, and live
 operator acceptance remain separate evidence gates.
