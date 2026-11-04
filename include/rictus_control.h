@@ -16,6 +16,10 @@ typedef struct {
     int decision;
     int executor_reached;
     int execution_suppressed;
+    int mission_known;
+    int policy_known;
+    int instruction_known;
+    int authority_known;
     char policy_id[64];
     char reason[RICTUS_CONTROL_TEXT_MAX];
 } rictus_control_response_t;
