@@ -339,9 +339,17 @@ static stnlabz_module_result_t compliance_qualify(
 {
     unsigned executed_a = 0U, passed_a = 0U;
     unsigned executed_b = 0U, passed_b = 0U;
+    /* [AI:GPT-6 | 2026-11-04 05:48:00 UTC] */
+    unsigned executed_c = 0U, passed_c = 0U;
+    /* [End AI:GPT-6] */
     int negative_executed_a = 0, negative_passed_a = 0;
     int negative_executed_b = 0, negative_passed_b = 0;
-    int ok_a, ok_b;
+    /* [AI:GPT-6 | 2026-11-04 05:48:00 UTC] */
+    int negative_executed_c = 0, negative_passed_c = 0;
+    /* [End AI:GPT-6] */
+    /* [AI:GPT-6 | 2026-11-04 05:48:00 UTC] */
+    int ok_a, ok_b, ok_c;
+    /* [End AI:GPT-6] */
 
     if (!qualification) return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
     memset(qualification, 0, sizeof *qualification);
@@ -350,18 +358,28 @@ static stnlabz_module_result_t compliance_qualify(
         &negative_executed_a, &negative_passed_a);
     ok_b = rictus_governance_selftest(&executed_b, &passed_b,
         &negative_executed_b, &negative_passed_b);
+    /* [AI:GPT-6 | 2026-11-04 05:48:00 UTC] */
+    ok_c = rictus_policy_index_selftest(&executed_c, &passed_c,
+        &negative_executed_c, &negative_passed_c);
+    /* [End AI:GPT-6] */
 
-    qualification->tests_executed = executed_a + executed_b;
-    qualification->tests_passed = passed_a + passed_b;
+    /* [AI:GPT-6 | 2026-11-04 05:48:00 UTC] */
+    qualification->tests_executed = executed_a + executed_b + executed_c;
+    qualification->tests_passed = passed_a + passed_b + passed_c;
+    /* [End AI:GPT-6] */
     qualification->tests_failed =
         qualification->tests_executed - qualification->tests_passed;
+    /* [AI:GPT-6 | 2026-11-04 05:48:00 UTC] */
     qualification->negative_test_executed =
-        negative_executed_a + negative_executed_b;
+        negative_executed_a + negative_executed_b + negative_executed_c;
     qualification->negative_test_passed =
-        negative_passed_a + negative_passed_b;
+        negative_passed_a + negative_passed_b + negative_passed_c;
+    /* [End AI:GPT-6] */
 
-    return ok_a && ok_b ?
+    /* [AI:GPT-6 | 2026-11-04 05:48:00 UTC] */
+    return ok_a && ok_b && ok_c ?
         STNLABZ_MODULE_OK : STNLABZ_MODULE_ERR_QUALIFICATION;
+    /* [End AI:GPT-6] */
 }
 
 static stnlabz_module_result_t compliance_start(const stnlabz_module_host_t *host)
