@@ -126,7 +126,7 @@ Establish Rictus's identity, mission, General Orders, runtime foundation, and ar
 **Exit Gate**  
 Human verification that Rictus correctly identifies himself, states his mission, understands his General Orders, and operates within the established runtime architecture.
 
-**Status**: {color:green}Established{/color}
+**Status**: Established
 
 ---
 
@@ -148,7 +148,7 @@ Maintain deterministic Core routing and independent mission capabilities.
 **Exit Gate**  
 Positive and negative routing tests, module lifecycle verification, runtime observation, and operator acceptance.
 
-**Status**: {color:green}Established{/color}
+**Status**: Established
 
 ---
 
@@ -178,10 +178,10 @@ Example operational flow:
 End-to-end verification of supported communication routes, peer targeting, sender preservation, and response delivery.
 
 **Status**
-- IRC transport: {color:green}Implemented{/color}
-- Human interaction: {color:green}Observed{/color}
-- Peer-agent interaction: {color:green}Observed{/color}
-- Broader transport-neutral qualification: {color:amber}Open{/color}
+- IRC transport: Implemented
+- Human interaction: Observed
+- Peer-agent interaction: Observed
+- Broader transport-neutral qualification: Open
 
 ---
 
@@ -213,10 +213,10 @@ Operational awareness must eventually extend beyond threat intelligence into the
 Human verification that Rictus correctly consumes authoritative sources, distinguishes relevant from irrelevant information, preserves source classifications, and does not invent unavailable operational state.
 
 **Status**
-- Threat intelligence polling: {color:green}Implemented{/color}
-- Relevance handling: {color:green}Observed{/color}
-- Persistent intelligence evidence: {color:green}Implemented{/color}
-- Broader operational awareness: {color:amber}In Development{/color}
+- Threat intelligence polling: Implemented
+- Relevance handling: Observed
+- Persistent intelligence evidence: Implemented
+- Broader operational awareness: In Development
 
 ---
 
@@ -342,14 +342,14 @@ Rictus must demonstrate that:
 9. the Project Director explicitly accepts the capability.
 
 **Status**
-- General Order decision engine: {color:green}Operator Observed{/color}
-- GO1 mission enforcement: {color:green}Operator Observed{/color}
-- GO2 policy/instruction enforcement: {color:green}Operator Observed{/color}
-- GO3 authority escalation: {color:green}Operator Observed{/color}
-- Mandatory control broker: {color:green}Operator Observed{/color}
-- Operational executor: {color:red}Not Enabled{/color}
-- Authoritative policy/directive sourcing: {color:amber}Pending{/color}
-- Operational control authority: {color:red}Not Granted{/color}
+- General Order decision engine: Operator Observed
+- GO1 mission enforcement: Operator Observed
+- GO2 policy/instruction enforcement: Operator Observed
+- GO3 authority escalation: Operator Observed
+- Mandatory control broker: Operator Observed
+- Operational executor: Not Enabled
+- Authoritative policy/directive sourcing: Pending
+- Operational control authority: Not Granted
 
 **Current Development State**: {color:amber}Development Hold{/color}
 
@@ -382,7 +382,7 @@ Being technically capable of an action does not authorize Rictus to perform it.
 **Exit Gate**  
 Real operational actions must demonstrate correct authorization, policy evaluation, directive evaluation, authority enforcement, execution, verification, and human acceptance.
 
-**Status**: {color:amber}Future Objective{/color}
+**Status**: Future Objective
 
 ---
 
@@ -414,7 +414,7 @@ Never:
 **Exit Gate**  
 Supervisory actions must demonstrate bounded authority, compliance with all General Orders, correct escalation, operational effectiveness, and explicit human acceptance.
 
-**Status**: {color:amber}Future Objective{/color}
+**Status**: Future Objective
 
 ---
 
@@ -437,7 +437,7 @@ Certification requires documented human assessment and explicit acceptance.
 
 Successful model output, successful execution, module qualification, access level, or technical capability does not independently confer operational certification.
 
-**Status**: {color:amber}Future Objective{/color}
+**Status**: Future Objective
 
 ---
 
@@ -684,7 +684,7 @@ Module-specific implementation details belong in their respective module documen
 **Company**: STN-LABZ, LLC.  
 **Project**: Rictus  
 **DTG**: 20261104:0215Z
-**Status**: {color:green}Approved{/color}
+**Status**: Approved
 
 ---
 
