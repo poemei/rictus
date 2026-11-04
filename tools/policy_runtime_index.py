@@ -29,9 +29,9 @@ def export_index(catalog):
             raise ValueError("Invalid source identity or hash")
         for number, line in enumerate(doc["text"].splitlines(), start=1):
             clean = line.replace("\t", " ").replace("\r", " ")
-            if len((root + "\t" + str(number) + "\t" + clean + "\n").encode("utf-8")) >= 4096:
+            if len((source + "\t" + str(number) + "\t" + digest + "\t" + clean + "\n").encode("utf-8")) >= 4096:
                 raise ValueError(f"Index line too long: {root}:{number}")
-            rows.append(f"{root}\t{number}\t{clean}\n")
+            rows.append(f"{source}\t{number}\t{digest}\t{clean}\n")
     return "".join(rows)
 
 
