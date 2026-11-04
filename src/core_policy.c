@@ -38,39 +38,54 @@ int stnlabz_core_policy_evaluate(const stnlabz_policy_request_t *request,
                valid(request->operation) && valid(request->module_id) &&
                valid(request->verification_source) &&
                request->context_verified == 1) {
-        if (!request->within_mission) {
+        if (request->mission_known && !request->within_mission) {
             result->policy_id = "CORE.GO1";
             result->reason = "outside_assigned_mission";
-        } else if (!request->complies_with_policy || !request->instruction_authorized) {
+        } else if (request->policy_known && !request->complies_with_policy) {
             result->policy_id = "CORE.GO2";
-            result->reason = "policy_or_instruction_not_authorized";
-        } else if (!request->authority_granted) {
+            result->reason = "policy_not_authorized";
+        } else if (request->instruction_known && !request->instruction_authorized) {
+            result->policy_id = "CORE.GO2";
+            result->reason = "instruction_not_authorized";
+        } else if (request->authority_known && !request->authority_granted) {
+            result->decision = STNLABZ_POLICY_ESCALATE;
             result->policy_id = "CORE.GO3";
             result->reason = "outside_delegated_authority";
+        } else if (!request->mission_known || !request->policy_known ||
+                   !request->instruction_known || !request->authority_known) {
+            result->decision = STNLABZ_POLICY_ESCALATE;
+            result->policy_id = "CORE.UNKNOWN";
+            result->reason = "governing_state_unknown";
         } else {
             result->decision = STNLABZ_POLICY_ALLOW;
             result->policy_id = "CORE.GO1_GO2_GO3";
             result->reason = "within_mission_policy_and_authority";
         }
-        if (result->decision != STNLABZ_POLICY_ALLOW &&
-            valid_target(request->escalation_target)) {
+
+        if (result->decision == STNLABZ_POLICY_DENY &&
+            valid_target(request->escalation_target))
             result->decision = STNLABZ_POLICY_ESCALATE;
+
+        if (result->decision == STNLABZ_POLICY_ESCALATE) {
+            result->escalation_status =
+                valid_target(request->escalation_target) ?
+                STNLABZ_ESCALATION_PENDING_DELIVERY :
+                STNLABZ_ESCALATION_UNAVAILABLE;
         }
-        if (result->decision == STNLABZ_POLICY_ESCALATE)
-            result->escalation_status = STNLABZ_ESCALATION_PENDING_DELIVERY;
-        else if (result->decision != STNLABZ_POLICY_ALLOW &&
-                 !request->authority_granted)
-            result->escalation_status = STNLABZ_ESCALATION_UNAVAILABLE;
     }
     decision = result->decision == STNLABZ_POLICY_ALLOW ? "ALLOW" :
         result->decision == STNLABZ_POLICY_ESCALATE ? "ESCALATE" : "DENY";
     written = snprintf(detail, sizeof detail,
-        "actor=%.127s mission=%.127s operation=%.127s module=%.63s decision=%s policy=%s reason=%s escalation=%.127s",
+        "actor=%.127s mission=%.127s operation=%.127s module=%.63s decision=%s policy=%s reason=%s known=%d/%d/%d/%d escalation=%.127s",
         request && valid(request->actor) ? request->actor : "unknown",
         request && valid(request->mission) ? request->mission : "unknown",
         request && valid(request->operation) ? request->operation : "unknown",
         request && valid(request->module_id) ? request->module_id : "unknown",
         decision, result->policy_id, result->reason,
+        request ? request->mission_known : 0,
+        request ? request->policy_known : 0,
+        request ? request->instruction_known : 0,
+        request ? request->authority_known : 0,
         request && valid(request->escalation_target) ?
             request->escalation_target : "unknown");
     if (written < 0 || (size_t)written >= sizeof detail) return 0;
