@@ -1,23 +1,12 @@
-# Rictus Chat Transport Integration
+# Rictus Web integration — v1.0.3
 
-Rictus Web v1.0.2 uses the **same outbound poll/reply channel as Digit**.
+No `web.conf` and no `RICTUS_WEB_TOKEN`.
 
-The previous local token-gated HTTP listener has been retired. This file
-supersedes the earlier implementation notes; see [README.md](README.md).
+The worker connects to `http://127.0.0.1/chat/transport`, using the
+existing ChAoS MVC Chat route, and sends `poll_rictus` / `reply_rictus`.
+Digit's existing `poll` / `reply` remain unchanged.
 
-- Chat receives `rictus: <directive>` and queues it for `agent=rictus`.
-- Rictus polls the existing protected `/chat/transport` URL using the
-  `poll_rictus` operation.
-- Rictus invokes the existing Core Router.
-- Rictus posts `reply_rictus` with its request ID and result.
-- Chat persists Rictus's reply with role `rictus`.
-
-Digit's original `poll`/`reply` operations are unchanged.
-
-The URL is operator configured in `/opt/rictus/config/web.conf`.
-No token, certificate listener, or new public port is part of this flow.
-The existing transport's localhost/trusted-proxy access restriction remains
-mandatory; the Rictus worker must use the same trusted network access path
-as Digit.
-
-Agent-to-agent cross-channel work orders are explicitly out of scope.
+This requires the Chat transport to run on Rictus's VPS at localhost port
+80, or to be already mapped there by the host's existing configuration.
+If the endpoint is absent, **do not claim integration succeeds**.
+Check the HTTP status before changing any further components.
