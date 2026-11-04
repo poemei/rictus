@@ -1,68 +1,60 @@
-# Rictus Web Transport v1.0.1
+# Rictus Web Transport v1.0.2
 
-Web owns Rictus's authenticated HTTPS transport; Core continues to own
-routing through `rictus.router.dispatch`. No Core or ABI changes.
+Rictus now uses the same Chat Module **poll/reply** pattern as Digit.
+No Rictus-specific bearer token, no inbound public listener, no extra agent
+bridge, and no changes to Core or the ABI.
 
-## Endpoint
+## Flow
 
-- HTTPS listener on port **18761**, IPv4 `0.0.0.0` (like Digit's
-  Interface on 8081). Host firewall MUST restrict inbound access to the
-  trusted website server(s). This port is not meant for unrestricted access.
-- `POST /ask`, `Content-Type: text/plain`.
-- `Authorization: Bearer <token>`, present on every request.
-- Body length 1–2047 bytes, one line. Plain-text replies.
-- The fixed `web` account label is a transport identity only.
-- Only the existing Rictus Core Router decides the conversational destination.
+1. The authenticated ChAoS MVC user sends `rictus: your request` in Chat.
+2. Chat stores the request with `agent=rictus`, state `queued`.
+3. Rictus's Web module POSTs `{"type":"poll_rictus"}` to the existing
+   `/chat/transport` route.
+4. Rictus passes the returned request into `rictus.router.dispatch`.
+5. It POSTs `{"type":"reply_rictus","id":"...","status":"ok","message":"..."}`.
+6. Chat stores the response as a message from **Rictus**, not Digit.
 
-## Server-side TLS configuration
+Digit retains its existing `poll` and `reply` transport operation names and
+cannot collect Rictus's jobs. The same source-address / trusted-proxy gate
+already protecting Digit's Chat Transport applies to Rictus. This module does
+not change or bypass that gate.
 
-Web **fails closed** if its TLS certificate, key, or token is absent or
-invalid. It has no plaintext fallback. Requires:
+## One setting, no token
 
-- `/opt/rictus/auth/web/cert.pem`: PEM certificate chain, with a SAN
-  matching the public hostname used by the Chat Module.
-- `/opt/rictus/auth/web/key.pem`: matching private key, regular file,
-  not symlinked, owner root or Rictus, mode `0600`.
-- `/opt/rictus/auth/web/token`: 32–128 lowercase hex characters
-  (64 recommended), owner Rictus, mode `0600`.
+On the same VPS as Digit, set the **same reachable Chat Transport URL** that
+Digit's outbound transport currently uses. Create this local file:
 
-Use your existing certificate issuance process; do not copy Digit's key
-unless the certificate actually covers the requested Rictus hostname.
-The Chat Module verifies both certificate trust and hostname.
+`/opt/rictus/config/web.conf`
 
-## Build, qualify, and install on Rictus VPS
+Exactly one line:
 
-```sh
+```ini
+transport_url=https://YOUR-CHAT-SERVER/chat/transport
+```
+
+The URL must resolve from the VPS through the existing trusted route. The
+Rictus process uses HTTPS with certificate and hostname verification. Do not
+point it at a public route that returns HTTP 403: that means the existing
+trusted transport network path has not been established.
+
+## Build and install
+
+```bash
 cd modules/web
 make
 make test
 sudo make install
 ```
 
-The Rictus module hotloader detects and qualifies `web.so`. Test/build
-success does not prove the live TLS endpoint works. Check Rictus's
-module state and TLS logs before declaring it operational.
+Rictus hotload calls the module's side-effect-free qualification callback,
+which exercises 12 payload/encoding cases. This is not proof of a live
+round-trip. Check the module status and send a real test directive in Chat.
 
-## Request from a trusted host
+No token files, TLS listener private keys, or new firewall openings are
+required by this module.
 
-```sh
-curl --fail-with-body -sS \
-  'https://YOUR-RICTUS-HOST:18761/ask' \
-  -H "Authorization: Bearer $RICTUS_WEB_TOKEN" \
-  -H 'Content-Type: text/plain' \
-  --data-binary 'get in here'
-```
+## Scope
 
-Never disable certificate verification, include credentials in browser
-JavaScript, or put tokens into GitHub. The ChAoS MVC Chat Module must have
-the matching secret and endpoint on its *PHP backend*, using environment
-settings or private `chat/config/rictus.local.php`.
-
-## Acceptance checks
-
-- Valid certificate and key: listener starts on TCP 18761.
-- Invalid/missing certificate or key: module does not activate.
-- Unauthenticated request: rejected.
-- Authorized request: reaches Core Router and returns Rictus's response.
-- Browser: displays the response as Rictus, never Digit.
-- Firewall: only intended backend source addresses can connect.
+The module owns the web **transport** only. Rictus's Core Router makes
+dispatch decisions. It does not implement cross-channel agent communication,
+release approvals or qualification work orders.
