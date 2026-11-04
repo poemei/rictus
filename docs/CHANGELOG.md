@@ -403,7 +403,7 @@ governing facts from:
 
 `/opt/rictus/modules/compliance/governance.conf`
 
-The root-owned governance record supports exact records for:
+The `rictus:rictus`-owned governance record supports exact records for:
 
 - mission scope
 - policy state
@@ -429,7 +429,30 @@ deployment, mutation, or other operational control capability was enabled.
 
 Compliance module version advanced from 1.0.1 to **1.1.0**.
 
-The Compliance installer was also aligned with the actual root-owned Rictus
+The Compliance installer is aligned with the actual `rictus:rictus` Rictus
 installation model.
 
 Shared ABI 1.5 and DSD behavior were not changed.
+
+
+### Compliance 1.1.0 — installer ownership correction
+
+**Implemented; runtime re-test pending**
+
+The operator corrected the Compliance installation ownership model.
+
+Compliance 1.1.0 now installs:
+
+- module directory
+- `module.conf`
+- `governance.conf`
+- `compliance.so`
+
+as:
+
+`rictus:rictus`
+
+The prior `root:root` assumption was incorrect for this installation target.
+
+No compliance decision logic, Core policy semantics, ABI behavior, or executor
+behavior changed in this correction.
