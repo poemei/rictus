@@ -536,3 +536,26 @@ Compliance module version advanced from 1.1.0 to **1.1.1**.
 
 Core policy semantics, shared ABI 1.5, DSD, IRC, Ollama, and Identity source
 behavior were not modified by this step.
+
+<!-- [AI:GPT-6 | 2026-11-04 05:46:12 UTC] -->
+### Compliance 1.1.2 — internal policy corpus evidence service
+
+**Source committed; build, qualification, installation and operator acceptance pending.**
+
+Compliance registers `rictus.policy.evidence`, an internal read-only service
+that can scan an operator-installed policy index created from the complete
+controlled-document catalog. Its evidence response distinguishes an absent
+index from a zero-match result and preserves the first matching source's
+declared revision ID, line number and source SHA-256. Separate whole-term
+operation and target match counts do not establish joint applicability.
+
+A private index exporter and standalone C/Python regression tests are included.
+Controlled policy content is not added to repository source history and the
+module installer does not provision the index.
+
+Existing `rictus.control.request`, `/control`, Core policy evaluation,
+governance source, ABI 1.5, and suppressed executor remain unchanged.
+The new service does not interpret evidence as a governing fact or grant
+operational permission. A future explicit step is needed to connect sourced
+policy requirements to control decisions.
+<!-- [End AI:GPT-6] -->
