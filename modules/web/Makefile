@@ -13,6 +13,7 @@ MODULEDIR ?= $(PREFIX)/modules/web
 
 CPPFLAGS += -I$(ROOT)/include
 TARGET := $(BUILD_DIR)/web.so
+TEST_TARGET := $(BUILD_DIR)/test_web
 
 .PHONY: all test install uninstall clean
 all: $(TARGET)
@@ -21,10 +22,12 @@ $(TARGET): src/web_module.c $(ROOT)/include/rictus_route.h
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared $(LDFLAGS) -o $@ src/web_module.c $(LDLIBS)
 
-# The hotloader executes the module's qualification callback (12 parser tests).
-# This command checks local build requirements; it does not certify live delivery.
-test: $(TARGET)
-	@echo "Built web.so; module qualification runs through Rictus hotload."
+$(TEST_TARGET): tests/test_web.c src/web_module.c
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ tests/test_web.c src/web_module.c $(LDLIBS)
+
+test: $(TEST_TARGET)
+	./$(TEST_TARGET)
 
 install: $(TARGET)
 	install -d -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m 0755 $(MODULEDIR)
