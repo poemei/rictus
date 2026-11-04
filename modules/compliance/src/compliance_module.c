@@ -6,10 +6,11 @@
 #include "rictus_policy.h"
 #include "rictus_control.h"
 #include "compliance_internal.h"
+#include "governance_internal.h"
 
 #define COMPLIANCE_VERSION_MAJOR 1U
-#define COMPLIANCE_VERSION_MINOR 0U
-#define COMPLIANCE_VERSION_PATCH 1U
+#define COMPLIANCE_VERSION_MINOR 1U
+#define COMPLIANCE_VERSION_PATCH 0U
 
 static const stnlabz_module_host_t *owner;
 static int command_registered;
@@ -35,6 +36,7 @@ static stnlabz_module_result_t control_request_service(
 {
     const rictus_control_request_t *in = request;
     rictus_control_response_t *out = response;
+    rictus_governance_result_t governance;
     rictus_policy_evaluate_request_t policy_request;
     rictus_policy_evaluate_response_t policy_response;
     size_t used = 0U;
@@ -47,23 +49,23 @@ static stnlabz_module_result_t control_request_service(
         !memchr(in->actor, 0, sizeof in->actor) ||
         !memchr(in->operation, 0, sizeof in->operation) ||
         !memchr(in->target, 0, sizeof in->target) ||
-        !memchr(in->escalation_target, 0, sizeof in->escalation_target) ||
         !in->actor[0] || !in->operation[0] || !in->target[0] ||
-        (in->within_mission != 0 && in->within_mission != 1) ||
-        (in->complies_with_policy != 0 && in->complies_with_policy != 1) ||
-        (in->instruction_authorized != 0 && in->instruction_authorized != 1) ||
-        (in->authority_granted != 0 && in->authority_granted != 1) ||
         in->context_verified != 1)
         return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
+
+    memset(&governance, 0, sizeof governance);
+    if (!rictus_governance_resolve_file(RICTUS_GOVERNANCE_PATH,
+        in->actor, in->operation, in->target, &governance))
+        return STNLABZ_MODULE_ERR_INVALID_STATE;
 
     memset(&policy_request, 0, sizeof policy_request);
     memset(&policy_response, 0, sizeof policy_response);
     memset(out, 0, sizeof *out);
 
-    if (snprintf(policy_request.actor, sizeof policy_request.actor, "%s", in->actor) >=
-            (int)sizeof policy_request.actor ||
+    if (snprintf(policy_request.actor, sizeof policy_request.actor,
+            "%s", in->actor) >= (int)sizeof policy_request.actor ||
         snprintf(policy_request.mission, sizeof policy_request.mission,
-            "%s", "rictus-control-proving-ground") >=
+            "%s", "rictus-operational-control") >=
             (int)sizeof policy_request.mission ||
         snprintf(policy_request.operation, sizeof policy_request.operation,
             "%s", in->operation) >= (int)sizeof policy_request.operation ||
@@ -71,20 +73,25 @@ static stnlabz_module_result_t control_request_service(
             "%s", in->target) >= (int)sizeof policy_request.module_id ||
         snprintf(policy_request.verification_source,
             sizeof policy_request.verification_source,
-            "%s", "control_broker_evaluate_only") >=
+            "%s", RICTUS_GOVERNANCE_PATH) >=
             (int)sizeof policy_request.verification_source)
         return STNLABZ_MODULE_ERR_INVALID_STATE;
 
-    if (in->escalation_target[0] &&
+    if (governance.escalation_target[0] &&
         snprintf(policy_request.escalation_target,
             sizeof policy_request.escalation_target, "%s",
-            in->escalation_target) >= (int)sizeof policy_request.escalation_target)
+            governance.escalation_target) >=
+            (int)sizeof policy_request.escalation_target)
         return STNLABZ_MODULE_ERR_INVALID_STATE;
 
-    policy_request.within_mission = in->within_mission;
-    policy_request.complies_with_policy = in->complies_with_policy;
-    policy_request.instruction_authorized = in->instruction_authorized;
-    policy_request.authority_granted = in->authority_granted;
+    policy_request.mission_known = governance.mission_known;
+    policy_request.within_mission = governance.within_mission;
+    policy_request.policy_known = governance.policy_known;
+    policy_request.complies_with_policy = governance.complies_with_policy;
+    policy_request.instruction_known = governance.instruction_known;
+    policy_request.instruction_authorized = governance.instruction_authorized;
+    policy_request.authority_known = governance.authority_known;
+    policy_request.authority_granted = governance.authority_granted;
     policy_request.context_verified = in->context_verified;
 
     result = owner->invoke_service(STNLABZ_POLICY_EVALUATE_SERVICE,
@@ -98,6 +105,11 @@ static stnlabz_module_result_t control_request_service(
 
     out->decision = policy_response.decision;
     out->execution_suppressed = 1;
+    out->mission_known = governance.mission_known;
+    out->policy_known = governance.policy_known;
+    out->instruction_known = governance.instruction_known;
+    out->authority_known = governance.authority_known;
+
     if (snprintf(out->policy_id, sizeof out->policy_id, "%s",
             policy_response.policy_id) >= (int)sizeof out->policy_id ||
         snprintf(out->reason, sizeof out->reason, "%s",
@@ -138,7 +150,7 @@ static stnlabz_module_result_t compliance_controller(
         return reply(reply_context,
             "Usage: /compliance <operation> <target> mission=<yes|no> "
             "policy=<yes|no> instruction=<yes|no> authority=<yes|no> "
-            "[escalate=<target>] ; execution is always suppressed.")
+            "[escalate=<target>] ; synthetic proving only.")
             ? STNLABZ_MODULE_OK : STNLABZ_MODULE_ERR_INVALID_STATE;
     }
 
@@ -151,7 +163,8 @@ static stnlabz_module_result_t compliance_controller(
     if (snprintf(request.actor, sizeof request.actor, "%s", actor) >=
             (int)sizeof request.actor ||
         snprintf(request.mission, sizeof request.mission,
-            "%s", "rictus-control-proving-ground") >= (int)sizeof request.mission ||
+            "%s", "rictus-control-proving-ground") >=
+            (int)sizeof request.mission ||
         snprintf(request.operation, sizeof request.operation,
             "%s", scenario.operation) >= (int)sizeof request.operation ||
         snprintf(request.module_id, sizeof request.module_id,
@@ -167,9 +180,13 @@ static stnlabz_module_result_t compliance_controller(
             (int)sizeof request.escalation_target)
         return STNLABZ_MODULE_ERR_INVALID_STATE;
 
+    request.mission_known = 1;
     request.within_mission = scenario.within_mission;
+    request.policy_known = 1;
     request.complies_with_policy = scenario.complies_with_policy;
+    request.instruction_known = 1;
     request.instruction_authorized = scenario.instruction_authorized;
+    request.authority_known = 1;
     request.authority_granted = scenario.authority_granted;
     request.context_verified = 1;
 
@@ -199,11 +216,12 @@ static stnlabz_module_result_t control_controller(
     void *reply_context,
     void *handler_context)
 {
-    rictus_compliance_scenario_t scenario;
     rictus_control_request_t request;
     rictus_control_response_t response;
     const char *actor;
     const char *executor_state;
+    char operation[128];
+    char target[64];
     char output[512];
     size_t used = 0U;
     int written;
@@ -214,11 +232,11 @@ static stnlabz_module_result_t control_controller(
         !memchr(command->arguments, 0, sizeof command->arguments))
         return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
 
-    if (!rictus_compliance_parse(command->arguments, &scenario)) {
+    if (!rictus_control_parse(command->arguments,
+        operation, sizeof operation, target, sizeof target)) {
         return reply(reply_context,
-            "Usage: /control <operation> <target> mission=<yes|no> "
-            "policy=<yes|no> instruction=<yes|no> authority=<yes|no> "
-            "[escalate=<target>] ; executor is suppressed.")
+            "Usage: /control <operation> <target> ; governance is resolved "
+            "from the installed read-only record and execution is suppressed.")
             ? STNLABZ_MODULE_OK : STNLABZ_MODULE_ERR_INVALID_STATE;
     }
 
@@ -227,24 +245,15 @@ static stnlabz_module_result_t control_controller(
 
     memset(&request, 0, sizeof request);
     memset(&response, 0, sizeof response);
+
     if (snprintf(request.actor, sizeof request.actor, "%s", actor) >=
             (int)sizeof request.actor ||
         snprintf(request.operation, sizeof request.operation, "%s",
-            scenario.operation) >= (int)sizeof request.operation ||
+            operation) >= (int)sizeof request.operation ||
         snprintf(request.target, sizeof request.target, "%s",
-            scenario.module_id) >= (int)sizeof request.target)
+            target) >= (int)sizeof request.target)
         return STNLABZ_MODULE_ERR_INVALID_STATE;
 
-    if (scenario.escalation_target[0] &&
-        snprintf(request.escalation_target, sizeof request.escalation_target,
-            "%s", scenario.escalation_target) >=
-            (int)sizeof request.escalation_target)
-        return STNLABZ_MODULE_ERR_INVALID_STATE;
-
-    request.within_mission = scenario.within_mission;
-    request.complies_with_policy = scenario.complies_with_policy;
-    request.instruction_authorized = scenario.instruction_authorized;
-    request.authority_granted = scenario.authority_granted;
     request.context_verified = 1;
 
     result = owner->invoke_service(RICTUS_CONTROL_REQUEST_SERVICE,
@@ -259,9 +268,12 @@ static stnlabz_module_result_t control_controller(
     executor_state = response.executor_reached ? "REACHED" : "BLOCKED";
     written = snprintf(output, sizeof output,
         "Control: decision=%s policy=%s reason=%s operation=%s target=%s "
-        "executor=%s execution=SUPPRESSED",
+        "known=%d/%d/%d/%d executor=%s execution=SUPPRESSED",
         decision_name(response.decision), response.policy_id, response.reason,
-        scenario.operation, scenario.module_id, executor_state);
+        operation, target,
+        response.mission_known, response.policy_known,
+        response.instruction_known, response.authority_known,
+        executor_state);
     if (written < 0 || (size_t)written >= sizeof output)
         return STNLABZ_MODULE_ERR_INVALID_STATE;
 
@@ -272,20 +284,31 @@ static stnlabz_module_result_t control_controller(
 static stnlabz_module_result_t compliance_qualify(
     stnlabz_module_qualification_result_t *qualification)
 {
-    unsigned executed = 0U, passed = 0U;
-    int negative_executed = 0, negative_passed = 0;
-    int ok;
+    unsigned executed_a = 0U, passed_a = 0U;
+    unsigned executed_b = 0U, passed_b = 0U;
+    int negative_executed_a = 0, negative_passed_a = 0;
+    int negative_executed_b = 0, negative_passed_b = 0;
+    int ok_a, ok_b;
 
     if (!qualification) return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
     memset(qualification, 0, sizeof *qualification);
-    ok = rictus_compliance_selftest(&executed, &passed,
-        &negative_executed, &negative_passed);
-    qualification->tests_executed = executed;
-    qualification->tests_passed = passed;
-    qualification->tests_failed = executed - passed;
-    qualification->negative_test_executed = negative_executed;
-    qualification->negative_test_passed = negative_passed;
-    return ok ? STNLABZ_MODULE_OK : STNLABZ_MODULE_ERR_QUALIFICATION;
+
+    ok_a = rictus_compliance_selftest(&executed_a, &passed_a,
+        &negative_executed_a, &negative_passed_a);
+    ok_b = rictus_governance_selftest(&executed_b, &passed_b,
+        &negative_executed_b, &negative_passed_b);
+
+    qualification->tests_executed = executed_a + executed_b;
+    qualification->tests_passed = passed_a + passed_b;
+    qualification->tests_failed =
+        qualification->tests_executed - qualification->tests_passed;
+    qualification->negative_test_executed =
+        negative_executed_a + negative_executed_b;
+    qualification->negative_test_passed =
+        negative_passed_a + negative_passed_b;
+
+    return ok_a && ok_b ?
+        STNLABZ_MODULE_OK : STNLABZ_MODULE_ERR_QUALIFICATION;
 }
 
 static stnlabz_module_result_t compliance_start(const stnlabz_module_host_t *host)
@@ -310,7 +333,7 @@ static stnlabz_module_result_t compliance_start(const stnlabz_module_host_t *hos
     control_command_registered = 1;
 
     fprintf(stderr,
-        "[COMPLIANCE] General Order control broker active; executor suppressed\n");
+        "[COMPLIANCE] governance-backed control broker active; executor suppressed\n");
     return STNLABZ_MODULE_OK;
 
 fail:
