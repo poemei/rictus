@@ -5,12 +5,13 @@
 #include "core_policy.h"
 #include "rictus_policy.h"
 #include "rictus_control.h"
+#include "rictus_identity.h"
 #include "compliance_internal.h"
 #include "governance_internal.h"
 
 #define COMPLIANCE_VERSION_MAJOR 1U
 #define COMPLIANCE_VERSION_MINOR 1U
-#define COMPLIANCE_VERSION_PATCH 0U
+#define COMPLIANCE_VERSION_PATCH 1U
 
 static const stnlabz_module_host_t *owner;
 static int command_registered;
@@ -37,6 +38,8 @@ static stnlabz_module_result_t control_request_service(
     const rictus_control_request_t *in = request;
     rictus_control_response_t *out = response;
     rictus_governance_result_t governance;
+    rictus_identity_question_t identity_request;
+    rictus_identity_answer_t identity_response;
     rictus_policy_evaluate_request_t policy_request;
     rictus_policy_evaluate_response_t policy_response;
     size_t used = 0U;
@@ -53,6 +56,22 @@ static stnlabz_module_result_t control_request_service(
         in->context_verified != 1)
         return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
 
+    memset(&identity_request, 0, sizeof identity_request);
+    memset(&identity_response, 0, sizeof identity_response);
+    if (snprintf(identity_request.question, sizeof identity_request.question,
+            "%s", "mission") >= (int)sizeof identity_request.question)
+        return STNLABZ_MODULE_ERR_INVALID_STATE;
+
+    result = owner->invoke_service(RICTUS_IDENTITY_ANSWER_SERVICE,
+        &identity_request, sizeof identity_request,
+        &identity_response, sizeof identity_response, &used);
+    if (result != STNLABZ_MODULE_OK ||
+        used != sizeof identity_response ||
+        !memchr(identity_response.answer, 0, sizeof identity_response.answer) ||
+        !identity_response.answer[0])
+        return STNLABZ_MODULE_ERR_INVALID_STATE;
+
+    used = 0U;
     memset(&governance, 0, sizeof governance);
     if (!rictus_governance_resolve_file(RICTUS_GOVERNANCE_PATH,
         in->actor, in->operation, in->target, &governance))
@@ -105,6 +124,7 @@ static stnlabz_module_result_t control_request_service(
 
     out->decision = policy_response.decision;
     out->execution_suppressed = 1;
+    out->assigned_mission_verified = 1;
     out->mission_known = governance.mission_known;
     out->policy_known = governance.policy_known;
     out->instruction_known = governance.instruction_known;
@@ -268,9 +288,10 @@ static stnlabz_module_result_t control_controller(
     executor_state = response.executor_reached ? "REACHED" : "BLOCKED";
     written = snprintf(output, sizeof output,
         "Control: decision=%s policy=%s reason=%s operation=%s target=%s "
-        "known=%d/%d/%d/%d executor=%s execution=SUPPRESSED",
+        "assigned_mission=%s known=%d/%d/%d/%d executor=%s execution=SUPPRESSED",
         decision_name(response.decision), response.policy_id, response.reason,
         operation, target,
+        response.assigned_mission_verified ? "VERIFIED" : "UNKNOWN",
         response.mission_known, response.policy_known,
         response.instruction_known, response.authority_known,
         executor_state);
