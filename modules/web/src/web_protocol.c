@@ -76,9 +76,21 @@ int rictus_web_parse_headers(const char *bytes, size_t length,
                 invalid = 1;
         } else if (!strcasecmp(line, "Host")) {
             if (has_host++) return 0;
-            if (strcmp(value, "127.0.0.1:18761") != 0 &&
-                strcmp(value, "localhost:18761") != 0)
-                invalid = 1;
+            {
+                size_t vlen = strlen(value);
+                size_t j;
+                if (vlen < 8U || vlen > 255U ||
+                    strcmp(value + vlen - 6U, ":18761") != 0)
+                    invalid = 1;
+                for (j = 0; j < vlen; ++j) {
+                    unsigned char ch = (unsigned char)value[j];
+                    if (!((ch >= 'a' && ch <= 'z') ||
+                          (ch >= 'A' && ch <= 'Z') ||
+                          (ch >= '0' && ch <= '9') ||
+                          ch == '.' || ch == '-' || ch == ':'))
+                        invalid = 1;
+                }
+            }
         } else if (!strcasecmp(line, "Transfer-Encoding") ||
                    !strcasecmp(line, "Connection") && strcasecmp(value, "close")) {
             if (!strcasecmp(line, "Transfer-Encoding")) invalid = 1;
@@ -98,6 +110,7 @@ int rictus_web_run_selftests(unsigned int *e, unsigned int *p,
     static const char *cases[] = {
       "POST /ask HTTP/1.1\r\nHost: 127.0.0.1:18761\r\nAuthorization: Bearer secret\r\nContent-Length: 2\r\nContent-Type: text/plain\r\n\r\nhi",
       "POST /ask HTTP/1.1\r\nHost: localhost:18761\r\nAuthorization: Bearer secret\r\nContent-Length: 2\r\n\r\nhi",
+      "POST /ask HTTP/1.1\r\nHost: rictus.stn-labz.com:18761\r\nAuthorization: Bearer secret\r\nContent-Length: 2\r\n\r\nhi",
       "GET /ask HTTP/1.1\r\nHost: 127.0.0.1:18761\r\nAuthorization: Bearer secret\r\nContent-Length: 2\r\n\r\nhi",
       "POST /other HTTP/1.1\r\nHost: 127.0.0.1:18761\r\nAuthorization: Bearer secret\r\nContent-Length: 2\r\n\r\nhi",
       "POST /ask HTTP/1.1\r\nHost: 127.0.0.1:18761\r\nAuthorization: Bearer wrong\r\nContent-Length: 2\r\n\r\nhi",
@@ -111,7 +124,7 @@ int rictus_web_run_selftests(unsigned int *e, unsigned int *p,
       "POST /ask HTTP/1.1\r\nHost: 127.0.0.1:18761\r\nAuthorization: Bearer secret\r\nContent-Length: 2\r\nContent-Type: application/json\r\n\r\nhi",
       "POST /ask HTTP/1.1\r\nHost: 127.0.0.1:18761\r\nAuthorization: Bearer secret\r\nContent-Length: 2\r\nConnection: keep-alive\r\n\r\nhi",
     };
-    static const int expected[] = {1,1,0,0,-2,-2,-1,0,0,0,0,0,0,0};
+    static const int expected[] = {1,1,1,0,0,-2,-2,-1,0,0,0,0,0,0,0};
     unsigned int i;
     if (!e || !p || !ne || !np) return 0;
     *e = *p = *ne = *np = 0U;
