@@ -59,7 +59,7 @@ Default source root:
 
 ## Module: compliance
 
-**Version:** 1.1.0  
+**Version:** 1.1.1  
 **Location:** `modules/compliance/`  
 **Role:** General Order proving gate and mandatory control-request broker
 
@@ -78,6 +78,7 @@ Service:
 ### Current responsibilities
 
 - retain `/compliance` as an operator-defined synthetic test harness
+- verify the assigned mission record through `rictus.identity.answer`
 - resolve real `/control` governing facts from `/opt/rictus/modules/compliance/governance.conf`
 - exercise GO1 mission discipline
 - exercise GO2 policy/instruction compliance
@@ -86,7 +87,8 @@ Service:
 - always report `execution=SUPPRESSED`
 - block the executor boundary for `DENY` and `ESCALATE`
 - allow only `ALLOW` decisions to reach the suppressed executor stub
-- represent mission, policy/directive, instruction, and authority as known/unknown facts
+- separate assigned-mission-record verification from operation-within-mission determination
+- represent mission scope, policy/directive, instruction, and authority as known/unknown facts
 - escalate incomplete governing state as `CORE.UNKNOWN`
 - reject caller-supplied compliance flags on `rictus.control.request`
 
