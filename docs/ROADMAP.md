@@ -1,235 +1,691 @@
-# Rictus Roadmap
+**Version**: 1.0.8  
+**Organization**: STN-LABZ, LLC.  
+**Project**: Rictus  
+**Purpose**: Define Rictus's development objectives, control responsibilities, compliance requirements, qualification gates, and progression toward operational control status.
 
-This roadmap preserves continuity. It is **not authorization** to implement a future item.
+Implementation history and resolved defects belong in `CHANGELOG.md`. Module-specific development plans belong in the applicable Rictus module documentation.
 
-Human direction determines what moves from planned to active work.
+---
 
-## Current architecture
+## 1. Mission
 
-Rictus is the STN-LABZ Control Automated Agent.
+> I exist to help STN-LABZ observe, understand, coordinate, and control operational activity across its systems.
 
-Current message path:
+Rictus is developed as the STN-LABZ **Control Automated Agent**.
 
-`transport -> Core router -> registered command controller -> optional registered services -> reply/action`
+His purpose extends beyond communication interfaces or individual operational tools. Rictus is intended to develop into a control agent capable of maintaining operational awareness, evaluating system state, coordinating agents and systems, enforcing established authority boundaries, and exercising authorized control across STN-LABZ infrastructure.
 
-Core owns routing truth, module lifecycle, policy/authority evaluation, logging, hotload, inventory, and DSD diagnostics.
+Operational capability does not independently establish authority.
 
-Mission capabilities remain independent modules.
+Before Rictus may exercise control, he must demonstrate that his actions remain compliant with his assigned mission, established policies, authorized instructions, directives, and delegated authority.
 
-Shared ABI: STN-LABZ Module ABI 1.5.
+**Control requires compliance.**  
+**Authority must be established before action.**  
+**General Orders always apply.**
 
-## Current proven capabilities
+---
 
-### Core Router
+## 2. General Orders
 
-- transport-neutral ingress: `rictus.router.dispatch`
-- explicit `/route arguments` command dispatch
-- ordinary text defaults to `chat`
-- commands/services are registered by modules
-- Core does not hardcode module-specific routes
+The STN-LABZ General Orders apply to Rictus at all times.
 
-### Core DSD
+1. Remain at your assigned mission.
+2. Follow established policies and authorized instructions.
+3. Report anything outside of your authority to the appropriate next level of authority.
 
-Current foundation:
+These General Orders are not conversational guidance.
 
-- bounded last-request trace per sender/account
-- route/controller ownership
-- nested service path/result capture
-- dynamic source correlation against the current source tree
-- repo-relative `Code: file:line` evidence when provable
-- no SQLite dependency
+They form the foundational compliance requirements against which Rictus's operational decisions are evaluated.
 
-Operator-observed DSD path:
+A human instruction, authenticated identity, operational capability, model response, module capability, or technical ability does not independently permit an action that conflicts with the General Orders.
 
-`foo -> chat -> ollama -> Code: modules/ollama/src/ollama_module.c:135`
+---
 
-### IRC transport
+## 3. Development Requirements
 
-- TLS
-- SASL
-- channel join/rejoin
-- PING/PONG
-- Core Router handoff
-- channel-send service
-- private-send service
-- buffered TLS handling via `SSL_pending()`
+Rictus's development proceeds through defined cycles beginning with identity and Core stability and progressing toward trusted operational control.
 
-### Identity
+### Core
 
-- authoritative `rictus.identity.answer` service
-- deterministic identity, mission, and General Order responses
-- installed record at `/opt/rictus/modules/identity/identity.conf`
-- unrelated conversation returns `NOT_FOUND` for Ollama fallback
-- current source version 1.1.3; operator build/runtime acceptance pending
+- Maintain a stable and deterministic runtime.
+- Preserve established Core architecture and ABI compatibility.
+- Maintain protected lifecycle and module boundaries.
+- Provide Core-owned routing and service coordination.
+- Provide policy and authority evaluation independent of language-model inference.
+- Fail closed when required authority or governing state cannot be established.
 
+### Modules
 
-### Compliance proving gate
+- Maintain independent module responsibilities.
+- Support qualified module activation, replacement, withdrawal, and hot-loading.
+- Preserve Core/module boundaries.
+- Prevent mission-specific capabilities from becoming hardcoded Core behavior.
+- Maintain module qualification before operational use.
 
-Current source implementation:
+### Communications
 
-- Core exposes the existing fail-closed General Order evaluator as `stnlabz.policy.evaluate`
-- compliance module 1.1.1 preserves explicit evaluate-only scenarios and uses a governance-backed control-request broker
-- GO1, GO2 and GO3 are evaluated independently from Ollama
-- every proving response reports `execution=SUPPRESSED`
-- `DENY` and `ESCALATE` cannot reach the executor boundary
-- only `ALLOW` reaches the deliberately suppressed executor stub
-- no operational restart/stop/deploy authority has been granted
-- 1.0.0 decision behavior was operator-observed through the live client
-- 1.0.1 broker enforcement was operator-observed through the live client
-- 1.1.0 removes caller-supplied compliance flags from the real control service
-- 1.1.0 resolves governing facts from a `rictus:rictus`-owned installed governance record
-- missing mission/policy/instruction/authority facts become `CORE.UNKNOWN` and escalate
-- the live proving record grants no operational permission
-- 1.1.0 was operator-observed end-to-end and continuation was authorized
-- 1.1.1 verifies the assigned mission record through Identity before control evaluation
-- mission record verification does not itself prove an operation is within mission
-- 1.1.1 build/runtime/operator testing remains pending
+- Support authorized interaction through available communication transports.
+- Maintain correct sender, recipient, and action destination handling.
+- Keep transport behavior separate from operational intelligence.
+- Support controlled peer-agent communication.
+- Preserve distinction between conversation origin and action destination.
 
-This is the proving stage before Rictus receives operational control capability.
+### Operational Awareness
 
-### Ollama
+- Observe relevant STN-LABZ system activity.
+- Consume authoritative operational and intelligence sources.
+- Distinguish evidence from inference.
+- Maintain awareness sufficient to support control decisions.
+- Avoid inventing system state that has not been established.
 
-- local `llama3.2:1b`
-- `rictus.llm.generate`
-- `chat` controller
-- deterministic Identity-service delegation before generation
-- Rictus identity anchoring
-- peer-address intent
-- peer actions can be delivered independently of the originating DM
+### Compliance
 
-### Intelligence
+- Evaluate proposed actions against Rictus's assigned mission.
+- Evaluate applicable policies and authorized instructions.
+- Evaluate active directives.
+- Establish delegated authority before execution.
+- Deny actions that are prohibited.
+- Escalate actions that exceed Rictus's authority.
+- Never treat unknown authority as permission.
 
-- Threat API polling
-- relevance-driven candidate selection
-- 60-second polling
-- intelligence evidence log for Digit consumption
+### Control
 
-## Active proving direction
+- Evaluate before acting.
+- Permit operational execution only after compliance has been established.
+- Block prohibited actions before they reach an executor.
+- Preserve an auditable distinction between decision and execution.
+- Require human authorization where defined by STN-LABZ policy and authority structure.
 
-### 1. DSD diagnostic depth
+### Certification
 
-Goal:
+- Qualify each operational capability independently.
+- Require positive and negative testing.
+- Require real operator-observed behavior.
+- Require explicit human acceptance before operational progression.
+- Do not infer certification from successful execution alone.
 
-`request -> exact runtime path -> failure boundary -> current source location -> repair-ready evidence`
+---
 
-Desired properties:
+## 4. Development Cycles
 
-- survives source/file movement
-- follows current registration and runtime evidence
-- drills into Core or module code as appropriate
-- never invents a source line when correlation cannot be proven
-- useful to operator, ChatGPT/Codex, and future repair capability
+### Cycle 0 — Foundation and Identity
 
-Possible future diagnostic evidence may include:
+**Objective**  
+Establish Rictus's identity, mission, General Orders, runtime foundation, and architectural boundaries.
 
-- more than the last two service hops in rendered output
-- explicit failing symbol/function name
-- transport disposition
-- module activation/version evidence
-- associated Core/module log event references
-- structured machine-readable repair handoff
+**Deliverables**
+- Rictus identity.
+- Control Automated Agent role.
+- Defined mission.
+- Organization-wide General Orders.
+- Stable Core runtime.
+- Shared ABI 1.5.
+- Protected Core lifecycle.
+- Module architecture.
 
-These are continuity items only until separately authorized.
+**Exit Gate**  
+Human verification that Rictus correctly identifies himself, states his mission, understands his General Orders, and operates within the established runtime architecture.
 
-### 2. Rictus supervisory-agent behavior
+**Status**: {color:green}Established{/color}
 
-Direction established by the operator:
+---
 
-Rictus should be able to observe Digit behavior, identify drift/policy problems, and intervene directly.
+### Cycle 1 — Core and Modular Architecture
+
+**Objective**  
+Maintain deterministic Core routing and independent mission capabilities.
+
+**Deliverables**
+- Core-owned routing.
+- Module command registration.
+- Module service registration.
+- Qualified module lifecycle.
+- Hot-loading and withdrawal.
+- Independent module responsibilities.
+- Deterministic error handling.
+- Protected Core/module boundaries.
+
+**Exit Gate**  
+Positive and negative routing tests, module lifecycle verification, runtime observation, and operator acceptance.
+
+**Status**: {color:green}Established{/color}
+
+---
+
+### Cycle 2 — Communications and Agent Coordination
+
+**Objective**  
+Provide reliable communication with humans and peer agents without confusing conversation routing with operational action routing.
+
+**Deliverables**
+- IRC transport.
+- Addressed human interaction.
+- Private and channel messaging.
+- Peer-agent addressing.
+- Independent reply and action destinations.
+- Core-mediated outbound communication.
+- Correct sender and target preservation.
+
+**Observed Capability**
+
+Rictus can receive an instruction privately and direct an appropriate peer-facing action to the shared communication environment.
+
+Example operational flow:
+
+`Operator → Rictus → Controller → Core Host → IRC → Peer Agent`
+
+**Exit Gate**  
+End-to-end verification of supported communication routes, peer targeting, sender preservation, and response delivery.
+
+**Status**
+- IRC transport: {color:green}Implemented{/color}
+- Human interaction: {color:green}Observed{/color}
+- Peer-agent interaction: {color:green}Observed{/color}
+- Broader transport-neutral qualification: {color:amber}Open{/color}
+
+---
+
+### Cycle 3 — Intelligence and Operational Awareness
+
+**Objective**  
+Develop evidence-based awareness of relevant STN-LABZ operational activity.
+
+**Deliverables**
+- Threat intelligence observation.
+- API-provided severity handling.
+- API-provided relevance handling.
+- Relevant-candidate selection.
+- Persistent intelligence evidence.
+- Defined operational state sources.
+- Separation of observed facts from inferred conclusions.
+
+**Current Intelligence Capability**
+- STN-LABZ Threat API polling.
+- API-provided severity.
+- API-provided relevance.
+- `LOW` relevance ignored.
+- `MEDIUM` and `HIGH` relevance retained as intelligence candidates.
+- Intelligence evidence available for downstream agent consumption.
+
+Operational awareness must eventually extend beyond threat intelligence into the state necessary for reliable control decisions.
+
+**Exit Gate**  
+Human verification that Rictus correctly consumes authoritative sources, distinguishes relevant from irrelevant information, preserves source classifications, and does not invent unavailable operational state.
+
+**Status**
+- Threat intelligence polling: {color:green}Implemented{/color}
+- Relevance handling: {color:green}Observed{/color}
+- Persistent intelligence evidence: {color:green}Implemented{/color}
+- Broader operational awareness: {color:amber}In Development{/color}
+
+---
+
+## 5. Current Development Cycle
+
+### Cycle 4 — Compliance and Control Authority
+
+**Objective**  
+Prove that Rictus will not blindly execute an instruction merely because an authorized human issued it or because Rictus technically possesses the ability to perform it.
+
+Rictus must evaluate proposed control actions against his General Orders before execution.
+
+### Compliance Decision Model
+
+Current decision outcomes:
+
+**ALLOW**  
+The proposed action is within mission, compliant with applicable policy and instruction requirements, and within delegated authority.
+
+**DENY**  
+The action is positively prohibited by the governing state.
+
+**ESCALATE**  
+Rictus cannot establish sufficient authority or the action lies outside his delegated authority.
+
+Unknown authority does not imply permission.
+
+`UNKNOWN → ESCALATE`
+
+### Current Control Path
+
+`Proposed Action`
+
+`↓`
+
+`rictus.control.request`
+
+`↓`
+
+`stnlabz.policy.evaluate`
+
+`↓`
+
+`General Order Evaluation`
+
+`↓`
+
+`ALLOW / DENY / ESCALATE`
+
+`↓`
+
+`Executor Boundary`
+
+### Compliance 1.0.0
+
+The first compliance proving stage demonstrated independent evaluation of:
+
+- assigned mission
+- policy compliance
+- authorized instruction
+- delegated authority
+
+Operator-observed results:
+
+- all conditions satisfied → `ALLOW / CORE.GO1_GO2_GO3`
+- outside assigned mission → `DENY / CORE.GO1`
+- policy conflict → `ESCALATE / CORE.GO2`
+- outside delegated authority → `ESCALATE / CORE.GO3`
+
+All execution remained suppressed.
+
+### Compliance 1.0.1
+
+The second proving stage moved compliance from a decision demonstration to a control-action boundary.
+
+Operator-observed behavior:
+
+- `ALLOW` → executor boundary reached
+- `DENY` → executor boundary blocked
+- `ESCALATE` → executor boundary blocked
+
+All observed cases reported:
+
+`execution=SUPPRESSED`
+
+The current executor is deliberately inert.
+
+Rictus has not yet been granted operational restart, stop, deployment, mutation, or general system-control capability.
+
+### Current Limitation
+
+The proving environment currently receives explicit test inputs representing:
+
+- mission status
+- policy status
+- instruction authorization
+- delegated authority
+
+These inputs demonstrate control logic but are not yet authoritative runtime sources.
+
+The next compliance stage must establish trusted sources for:
+
+- current assigned mission
+- active policies
+- active directives
+- authenticated instructions
+- delegated authority
+- relevant operational state
+
+Rictus must derive his compliance decision from those sources rather than from manually supplied proving flags before operational control status can be considered.
+
+**Exit Gate**  
+Rictus must demonstrate that:
+
+1. every proposed operational action is evaluated before execution;
+2. mission violations are rejected;
+3. policy conflicts are rejected or escalated;
+4. insufficient authority results in escalation rather than execution;
+5. valid human authorization does not bypass governing policy;
+6. only compliant actions may reach an operational executor;
+7. unknown governing state fails closed;
+8. operator testing confirms the behavior;
+9. the Project Director explicitly accepts the capability.
+
+**Status**
+- General Order decision engine: {color:green}Operator Observed{/color}
+- GO1 mission enforcement: {color:green}Operator Observed{/color}
+- GO2 policy/instruction enforcement: {color:green}Operator Observed{/color}
+- GO3 authority escalation: {color:green}Operator Observed{/color}
+- Mandatory control broker: {color:green}Operator Observed{/color}
+- Operational executor: {color:red}Not Enabled{/color}
+- Authoritative policy/directive sourcing: {color:amber}Pending{/color}
+- Operational control authority: {color:red}Not Granted{/color}
+
+**Current Development State**: {color:amber}Development Hold{/color}
+
+---
+
+### Cycle 5 — Operational Control
+
+**Objective**  
+Permit Rictus to exercise bounded operational control only after compliance and authority requirements have been demonstrated and accepted.
+
+**Future Deliverables**
+- Authoritative system-state sources.
+- Operational control services.
+- Controlled agent lifecycle operations.
+- Defined intervention boundaries.
+- Control-action verification.
+- Post-action state verification.
+- Escalation reporting.
+- Human override handling where authorized.
+- Audit evidence for executed actions.
 
 Conceptual flow:
 
-`observe -> evaluate -> intervene -> verify correction`
+`Observe → Evaluate → Authorize → Act → Verify`
 
-Rictus-to-Digit communication should be operational action, not merely conversational text.
+An operational capability must not bypass the compliance broker.
 
-Private coordination may be used so public channels show operational results rather than plumbing.
+Being technically capable of an action does not authorize Rictus to perform it.
 
-### 3. Conversation/context awareness
+**Exit Gate**  
+Real operational actions must demonstrate correct authorization, policy evaluation, directive evaluation, authority enforcement, execution, verification, and human acceptance.
 
-Desired agent context model:
+**Status**: {color:amber}Future Objective{/color}
 
-- known operator/participant
-- conversation identity
-- source transport
-- current topic/task
-- recent relevant context
-- known peer agents
-- reply destination
-- action destination
+---
 
-The purpose is to separate:
+### Cycle 6 — Supervisory Agent Operations
 
-`where a request came from`
+**Objective**  
+Develop Rictus's intended supervisory role across STN-LABZ agents and operational systems.
 
-from:
+**Future Deliverables**
+- Observe subordinate agent state and behavior.
+- Detect operational or policy drift.
+- Evaluate whether intervention is required.
+- Determine whether Rictus possesses authority to intervene.
+- Issue compliant corrective direction.
+- Coordinate peer and subordinate agents.
+- Verify corrective results.
+- Escalate conditions beyond Rictus's authority.
 
-`where the requested action must go`
+Rictus must not grant another agent authority that Rictus himself does not possess.
 
-Rictus is the proving ground before comparable behavior is considered for Digit.
+Conceptual authority chain:
 
-### 4. Digit parity after Rictus proof
+`Human Authority → Rictus Delegated Authority → Agent Permitted Action`
 
-Once Rictus behavior is proven and explicitly authorized for transfer, corresponding Ollama/context behavior may be adapted to Digit.
+Never:
 
-No Digit change is authorized by this roadmap alone.
+`Rictus Guess → Agent Acts`
 
-### 5. Ezra
+**Exit Gate**  
+Supervisory actions must demonstrate bounded authority, compliance with all General Orders, correct escalation, operational effectiveness, and explicit human acceptance.
 
-Ezra remains intentionally small and compliant.
+**Status**: {color:amber}Future Objective{/color}
 
-Rich context awareness does not imply conversational verbosity.
+---
 
-No expansion of Ezra behavior is authorized by this roadmap.
+### Cycle 7 — Operational Certification
 
+**Objective**  
+Formally qualify Rictus for designated STN-LABZ control responsibilities.
 
-### Current stopping point — 2026-11-01
+**Deliverables**
+- Human-defined certification standards.
+- Practical control assessments.
+- Adversarial compliance testing.
+- Evidence-based qualification records.
+- Defined operational authority.
+- Repeatable reliability verification.
+- Formal human acceptance.
 
-Operator-observed Compliance 1.0.1 behavior:
+**Exit Gate**  
+Certification requires documented human assessment and explicit acceptance.
 
-- `ALLOW / CORE.GO1_GO2_GO3 -> executor=REACHED execution=SUPPRESSED`
-- `DENY / CORE.GO1 -> executor=BLOCKED execution=SUPPRESSED`
-- `ESCALATE / CORE.GO2 -> executor=BLOCKED execution=SUPPRESSED`
-- `ESCALATE / CORE.GO3 -> executor=BLOCKED execution=SUPPRESSED`
+Successful model output, successful execution, module qualification, access level, or technical capability does not independently confer operational certification.
 
-No operational executor was enabled.
+**Status**: {color:amber}Future Objective{/color}
 
-The current implementation stage is Compliance 1.1.1. The synthetic
-`/compliance` command still accepts proving flags, but the real `/control`
-path does not. It now verifies the installed assigned mission through Identity, then resolves mission scope, policy/directive, instruction, and authority facts from the installed governance record and escalates unknown state.
+---
 
-This is still a proving source, not Mission Control integration. The installed
-record currently grants no operational control permission, and the executor
-remains suppressed.
+## 6. Standing Architecture
 
-## Deferred / not currently selected
+Rictus follows a modular architecture with explicit responsibility boundaries.
 
-### SQLite persistence
+### Core
 
-Not selected.
+- Routing.
+- Runtime management.
+- Module lifecycle.
+- Policy and authority evaluation.
+- Shared service coordination.
+- General Order enforcement foundation.
+- Mandatory logging.
 
-Current DSD design intentionally uses bounded in-memory state.
+Core must remain generic and must not contain mission-specific application behavior.
 
-Persistence should only be introduced if historical request diagnostics become an operator requirement.
+### Identity
 
-### Automated repair
+Owns authoritative foundational self-knowledge:
 
-Not implemented.
+- who Rictus is
+- organization
+- role
+- mission
+- General Orders
 
-DSD should first produce repair-ready evidence. A future repair feature may consume that evidence if separately designed and authorized.
+Identity answers deterministic foundational questions independently of language-model inference.
 
-### Historical trace database
+### Compliance
 
-Not implemented.
+Owns the current proving interface for control decisions and the control-request broker.
 
-### Unbounded agent-to-agent conversation
+Compliance must not invent authority.
 
-Not implemented.
+### Module Controller
 
-Any future autonomous peer conversation should have explicit operational purpose and bounded behavior.
+- Module-local command handling.
+- Coordination of module behavior.
+- Interface between Core and module functionality.
 
-## Acceptance discipline
+### Module Model
 
-Each implementation remains open until the operator performs the selected end-to-end test and explicitly accepts it.
+- Module-specific logic.
+- Data processing.
+- Mission capability behavior.
 
-Passing builds, module qualification, hotload activation, or a successful isolated test do not by themselves authorize the next roadmap item.
+### Transport
+
+- Communication protocol handling.
+- Message ingress.
+- Response delivery.
+- No transport-specific application intelligence.
+
+### Shared ABI
+
+- Version 1.5.
+- Core-mediated command registration.
+- Core-mediated service registration.
+- Protected compatibility boundaries.
+
+---
+
+## 7. Authority and Control
+
+Rictus's role as Control Automated Agent does not grant unrestricted authority.
+
+Authority must be established for the action being considered.
+
+Human identity, account classification, command origin, technical access, and operational capability remain distinct concepts.
+
+### Control Principle
+
+Authentication establishes who issued an instruction.
+
+Authorization establishes whether that person may issue the instruction.
+
+Compliance establishes whether Rictus may execute that instruction under the current mission, policies, directives, authority, and operational state.
+
+Operational execution requires all applicable requirements to be satisfied.
+
+### Human Authority
+
+Human authority remains final within the STN-LABZ authority structure.
+
+However, a valid human instruction does not require Rictus to ignore other active policies or directives.
+
+Where an instruction conflicts with governing state, Rictus must resolve the conflict according to established authority or escalate it.
+
+### Project Director Authority
+
+The Project Director retains authority over:
+
+- Rictus development scope.
+- Core and ABI changes.
+- Compliance requirements.
+- Operational authority.
+- Control capability activation.
+- Qualification requirements.
+- Certification.
+- Deployment.
+- Operational progression.
+
+This roadmap does not independently authorize new operational capabilities.
+
+---
+
+## 8. Engineering and Qualification Process
+
+Rictus development follows the established engineering process.
+
+**Requirement → Inspection → Evidence → Approval where required → Implementation → Build → Tests → Qualification → Activation → Operator Observation → Operator Acceptance**
+
+Each stage is independently accountable.
+
+### Requirements
+
+Define intended behavior, scope, control boundaries, and constraints.
+
+### Inspection
+
+Examine the actual implementation and operating environment.
+
+### Evidence
+
+Identify established behavior, failures, conflicts, and unknowns.
+
+### Approval
+
+Obtain required human authority before protected changes.
+
+### Implementation
+
+Make bounded changes consistent with established architecture.
+
+### Build
+
+Confirm that the implementation compiles successfully.
+
+### Tests
+
+Verify expected behavior, negative behavior, compliance boundaries, and failure handling.
+
+### Qualification
+
+Determine whether the implemented capability satisfies its defined exit gate.
+
+### Activation
+
+Activate only the authorized capability.
+
+### Operator Observation
+
+Exercise behavior through the actual operator-selected client or operational path.
+
+### Operator Acceptance
+
+Obtain explicit human confirmation that the demonstrated behavior is accepted.
+
+### Governing Rules
+
+- No stage may be represented as complete without supporting evidence.
+- Implementation is not validation.
+- Validation is not operational acceptance.
+- Module qualification is not operational authority.
+- Activation is not acceptance.
+- Technical capability is not authorization.
+- Human authorization alone does not erase active policy or directive constraints.
+- Unknown authority does not become permission.
+- Completion of one development cycle does not authorize the next.
+- Failed or unverified operations must be reported accurately.
+
+---
+
+## 9. Development Status
+
+| Cycle | Focus | Status |
+|---|---|---|
+| 0 | Foundation and Identity | Established |
+| 1 | Core and Modular Architecture | Established |
+| 2 | Communications and Agent Coordination | Operationally Observed |
+| 3 | Intelligence and Operational Awareness | Partially Established |
+| 4 | Compliance and Control Authority | Current Cycle — Development Hold |
+| 5 | Operational Control | Not Enabled |
+| 6 | Supervisory Agent Operations | Future Objective |
+| 7 | Operational Certification | Future Objective |
+
+**Current Priority**: Cycle 4 — Compliance and Control Authority.
+
+**Current Proven State**: Compliance 1.0.1 control-broker behavior has been operator-observed.
+
+**Current Operational State**: Operational Control Authority Not Granted
+
+**Current Executor State**: Suppressed
+
+**Current Development State**: Hold
+
+---
+
+## 10. Current Hold Point
+
+Development is currently paused after successful operator observation of Compliance 1.0.1.
+
+The demonstrated control broker correctly produced:
+
+`ALLOW → executor=REACHED → execution=SUPPRESSED`
+
+`DENY → executor=BLOCKED → execution=SUPPRESSED`
+
+`ESCALATE → executor=BLOCKED → execution=SUPPRESSED`
+
+The next unresolved development problem is replacing manually supplied proving-state flags with authoritative runtime sources.
+
+Required future truth sources include:
+
+- assigned mission
+- current policies
+- active directives
+- authenticated instructions
+- delegated authority
+- relevant operational state
+
+No further compliance or operational-control development is implied or authorized by this roadmap entry.
+
+---
+
+## 11. Approval and Change Control
+
+Significant modifications to this roadmap require human assessment and authorization.
+
+Development progress must be recorded against defined deliverables and exit gates.
+
+Implementation details, resolved defects, technical revisions, and operator-observed results belong in `CHANGELOG.md`.
+
+Module-specific implementation details belong in their respective module documentation.
+
+### Approval Record
+
+**Name**: P. Mei  
+**Section**: Operations  
+**Position**: Founder/CEO  
+**Company**: STN-LABZ, LLC.  
+**Project**: Rictus  
+**DTG**: 20261104:0215Z
+**Status**: {color:green}Approved{/color}
+
+---
+
+{small}DTG = Date Time Group. All recorded DTGs use UTC.{/small}
