@@ -2,6 +2,7 @@
 """Inspect STN-LABZ controlled-document archives without assigning authority.
 
 [AI:GPT-6 | 2026-11-04 05:17:10 UTC]
+[AI:GPT-6 | 2026-11-04 05:25:00 UTC] Add read-only full-text catalog export.
 """
 import argparse
 import hashlib
@@ -55,7 +56,7 @@ def inspect(name, content):
     }
 
 
-def inventory(archive):
+def inventory(archive, include_text=False):
     documents = []
     with zipfile.ZipFile(archive) as bundle:
         for name in sorted(bundle.namelist()):
@@ -65,7 +66,11 @@ def inventory(archive):
                 raise ValueError(f"Non-text archive entry: {name}")
             if name.startswith("/") or ".." in PurePosixPath(name).parts:
                 raise ValueError(f"Unsafe archive path: {name}")
-            documents.append(inspect(name, bundle.read(name)))
+            content = bundle.read(name)
+            entry = inspect(name, content)
+            if include_text:
+                entry["text"] = content.decode("utf-8-sig", errors="replace")
+            documents.append(entry)
     return {"archive": PurePosixPath(archive).name,
             "documents": documents,
             "document_count": len(documents),
@@ -77,8 +82,11 @@ def inventory(archive):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("archive", help="Local zip containing controlled TXT documents")
+    parser.add_argument("--include-text", action="store_true",
+                        help="Include full original document text in JSON for read-only catalog use")
     args = parser.parse_args()
-    print(json.dumps(inventory(args.archive), indent=2, ensure_ascii=False))
+    print(json.dumps(inventory(args.archive, include_text=args.include_text),
+                     indent=2, ensure_ascii=False))
 
 
 if __name__ == "__main__":
