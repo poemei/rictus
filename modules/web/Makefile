@@ -2,7 +2,7 @@ CC ?= cc
 CPPFLAGS ?=
 CFLAGS ?= -std=c11 -O2 -Wall -Wextra -Wpedantic
 LDFLAGS ?=
-LDLIBS ?= -pthread
+LDLIBS ?= -pthread -lssl -lcrypto
 
 ROOT ?= ../..
 BUILD_DIR ?= build
