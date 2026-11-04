@@ -17,15 +17,15 @@ static int test_read_only_index(void)
     if (fd < 0) return 0;
     stream = fdopen(fd, "w");
     if (!stream) { close(fd); unlink(path); return 0; }
-    if (fputs("20260729.0\t12\t" 
-              "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\t"
-              "Digital documentation does not restart systems.\n"
-              "20260805.0.R1\t7\t"
-              "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\t"
-              "Digit may require an authorized restart.\n",
-              stream) < 0 || fclose(stream) != 0) {
-        unlink(path);
-        return 0;
+    {
+        int wrote = fputs("20260729.0\t12\t"
+                         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\t"
+                         "Digital documentation does not restart systems.\n"
+                         "20260805.0.R1\t7\t"
+                         "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\t"
+                         "Digit may require an authorized restart.\n", stream);
+        int closed = fclose(stream);
+        if (wrote < 0 || closed != 0) { unlink(path); return 0; }
     }
     if (rictus_policy_index_scan(path, "restart", "digit", &result) &&
         result.index_available == 1 &&
