@@ -2,6 +2,8 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 #include <netinet/in.h>
 #include <poll.h>
 #include <pthread.h>
@@ -18,16 +20,20 @@
 #include "web_protocol.h"
 
 #define WEB_PORT 18761
+#define WEB_TLS_CERT "/opt/rictus/auth/web/cert.pem"
+#define WEB_TLS_KEY "/opt/rictus/auth/web/key.pem"
 #define WEB_TOKEN_FILE "/opt/rictus/auth/web/token"
 #define WEB_VERSION_MAJOR 1U
 #define WEB_VERSION_MINOR 0U
-#define WEB_VERSION_PATCH 0U
+#define WEB_VERSION_PATCH 1U
 
 static const stnlabz_module_host_t *host;
 static pthread_t worker;
 static atomic_int stopping;
 static int worker_started;
 static int listen_fd = -1;
+static SSL_CTX *web_tls_ctx;
+static SSL *web_tls_session;
 static char secret[RICTUS_WEB_TOKEN_MAX + 1U];
 
 /* Credentials are read once at activation, not supplied through the web API. */
@@ -61,7 +67,7 @@ static int load_secret(void)
     return 1;
 }
 
-static void reply_http(int fd, int status, const char *reason, const char *text)
+static void reply_http(SSL *tls, int status, const char *reason, const char *text)
 {
     char header[512];
     size_t len = strlen(text);
@@ -71,12 +77,12 @@ static void reply_http(int fd, int status, const char *reason, const char *text)
        "Connection: close\r\nContent-Length: %zu\r\n\r\n",
        status, reason, len);
     if (n > 0 && (size_t)n < sizeof header) {
-        (void)send(fd, header, (size_t)n, MSG_NOSIGNAL);
-        (void)send(fd, text, len, MSG_NOSIGNAL);
+        (void)SSL_write(tls, header, n);
+        (void)SSL_write(tls, text, (int)len);
     }
 }
 
-static void serve_one(int fd)
+static void serve_one(int fd, SSL *tls)
 {
     char raw[RICTUS_WEB_MAX_REQUEST + 1U];
     size_t used = 0U, offset = 0U, length = 0U, i;
@@ -90,7 +96,7 @@ static void serve_one(int fd)
     (void)setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
     (void)setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof timeout);
     while (used < RICTUS_WEB_MAX_REQUEST && !atomic_load(&stopping)) {
-        ssize_t n = recv(fd, raw + used, RICTUS_WEB_MAX_REQUEST - used, 0);
+        int n = SSL_read(tls, raw + used, (int)(RICTUS_WEB_MAX_REQUEST - used));
         if (n <= 0) break;
         used += (size_t)n;
         for (i = 0; i + 3U < used; ++i) {
@@ -102,36 +108,36 @@ static void serve_one(int fd)
         if (finished) break;
     }
     if (!finished) {
-        reply_http(fd, 400, "Bad Request", "Invalid HTTP request");
+        reply_http(tls, 400, "Bad Request", "Invalid HTTP request");
         return;
     }
     parsed = rictus_web_parse_headers(raw, used, secret, &offset, &length);
     if (parsed == -2) {
-        reply_http(fd, 401, "Unauthorized", "Unauthorized");
+        reply_http(tls, 401, "Unauthorized", "Unauthorized");
         return;
     }
     if (parsed == -1) {
-        reply_http(fd, 413, "Payload Too Large", "Request too large");
+        reply_http(tls, 413, "Payload Too Large", "Request too large");
         return;
     }
     if (parsed != 1 || offset > used || used - offset > length) {
-        reply_http(fd, 400, "Bad Request", "Invalid request");
+        reply_http(tls, 400, "Bad Request", "Invalid request");
         return;
     }
     while (used - offset < length && used < RICTUS_WEB_MAX_REQUEST
            && !atomic_load(&stopping)) {
-        ssize_t n = recv(fd, raw + used, length - (used - offset), 0);
+        int n = SSL_read(tls, raw + used, (int)(length - (used - offset)));
         if (n <= 0) break;
         used += (size_t)n;
     }
     if (used - offset != length) {
-        reply_http(fd, 400, "Bad Request", "Incomplete body");
+        reply_http(tls, 400, "Bad Request", "Incomplete body");
         return;
     }
     for (i = 0; i < length; ++i) {
         unsigned char c = (unsigned char)raw[offset + i];
         if (c == 0U || c == '\r' || c == '\n') {
-            reply_http(fd, 400, "Bad Request", "Invalid text");
+            reply_http(tls, 400, "Bad Request", "Invalid text");
             return;
         }
     }
@@ -142,7 +148,7 @@ static void serve_one(int fd)
     memcpy(request.text, raw + offset, length);
     request.text[length] = 0;
     if (!host || !host->invoke_service) {
-        reply_http(fd, 503, "Service Unavailable", "Router unavailable");
+        reply_http(tls, 503, "Service Unavailable", "Router unavailable");
         return;
     }
     result = host->invoke_service(RICTUS_ROUTER_DISPATCH_SERVICE,
@@ -150,14 +156,14 @@ static void serve_one(int fd)
                                   &response, sizeof response, &response_used);
     if (result != STNLABZ_MODULE_OK || response_used != sizeof response ||
         !response.replied || !memchr(response.text, 0, sizeof response.text)) {
-        reply_http(fd, 503, "Service Unavailable", "No verified router reply");
+        reply_http(tls, 503, "Service Unavailable", "No verified router reply");
         return;
     }
     for (i = 0; response.text[i]; ++i) {
         if (response.text[i] == '\r' || response.text[i] == '\n')
             response.text[i] = ' ';
     }
-    reply_http(fd, 200, "OK", response.text);
+    reply_http(tls, 200, "OK", response.text);
 }
 
 static void *serve_loop(void *unused)
@@ -171,7 +177,10 @@ static void *serve_loop(void *unused)
         if (pfd.revents & POLLIN) {
             int fd = accept(listen_fd, NULL, NULL);
             if (fd >= 0) {
-                serve_one(fd);
+                SSL *tls = SSL_new(web_tls_ctx);
+                if (tls && SSL_set_fd(tls, fd) == 1 && SSL_accept(tls) == 1)
+                    serve_one(fd, tls);
+                if (tls) { (void)SSL_shutdown(tls); SSL_free(tls); }
                 close(fd);
             }
         }
@@ -202,6 +211,21 @@ static stnlabz_module_result_t start(const stnlabz_module_host_t *h)
         return STNLABZ_MODULE_ERR_START_FAILED;
     }
     {
+        struct stat key_stat;
+        if (lstat(WEB_TLS_KEY, &key_stat) != 0 ||
+            !S_ISREG(key_stat.st_mode) || key_stat.st_nlink != 1 ||
+            (key_stat.st_mode & 0077) != 0 ||
+            (key_stat.st_uid != 0 && key_stat.st_uid != geteuid()))
+            goto start_failed;
+        web_tls_ctx = SSL_CTX_new(TLS_server_method());
+        if (!web_tls_ctx ||
+            SSL_CTX_set_min_proto_version(web_tls_ctx, TLS1_2_VERSION) != 1 ||
+            SSL_CTX_use_certificate_chain_file(web_tls_ctx, WEB_TLS_CERT) != 1 ||
+            SSL_CTX_use_PrivateKey_file(web_tls_ctx, WEB_TLS_KEY, SSL_FILETYPE_PEM) != 1 ||
+            SSL_CTX_check_private_key(web_tls_ctx) != 1)
+            goto start_failed;
+    }
+    {
         struct sockaddr_in address;
         int one = 1;
         listen_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -210,7 +234,7 @@ static stnlabz_module_result_t start(const stnlabz_module_host_t *h)
         memset(&address, 0, sizeof address);
         address.sin_family = AF_INET;
         address.sin_port = htons(WEB_PORT);
-        address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        address.sin_addr.s_addr = htonl(INADDR_ANY);
         if (bind(listen_fd, (struct sockaddr *)&address, sizeof address) != 0 ||
             listen(listen_fd, 8) != 0) goto start_failed;
     }
@@ -218,7 +242,7 @@ static stnlabz_module_result_t start(const stnlabz_module_host_t *h)
     atomic_store(&stopping, 0);
     if (pthread_create(&worker, NULL, serve_loop, NULL) != 0)
         goto start_failed;
-    fprintf(stderr, "[WEB] listening on 127.0.0.1:%d\n", WEB_PORT);
+    fprintf(stderr, "[WEB] HTTPS listener active on port %d\n", WEB_PORT);
     worker_started = 1;
     return STNLABZ_MODULE_OK;
 
@@ -226,8 +250,10 @@ start_failed:
     if (listen_fd >= 0) close(listen_fd);
     listen_fd = -1;
     host = NULL;
+    SSL_CTX_free(web_tls_ctx);
+    web_tls_ctx = NULL;
     memset(secret, 0, sizeof secret);
-    fprintf(stderr, "[WEB] loopback bind/start failed\n");
+    fprintf(stderr, "[WEB] HTTPS start failed\n");
     return STNLABZ_MODULE_ERR_START_FAILED;
 }
 
@@ -241,12 +267,14 @@ static stnlabz_module_result_t stop(void)
     if (listen_fd >= 0) close(listen_fd);
     listen_fd = -1;
     host = NULL;
+    SSL_CTX_free(web_tls_ctx);
+    web_tls_ctx = NULL;
     memset(secret, 0, sizeof secret);
     return STNLABZ_MODULE_OK;
 }
 
 static const stnlabz_module_descriptor_t descriptor = {
-    "web", "Rictus Loopback Web Transport",
+    "web", "Rictus HTTPS Web Transport",
     WEB_VERSION_MAJOR, WEB_VERSION_MINOR, WEB_VERSION_PATCH,
     STNLABZ_MODULE_API_MAJOR, STNLABZ_MODULE_API_MINOR,
     qualify, start, stop
