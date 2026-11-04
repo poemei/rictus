@@ -68,7 +68,7 @@ Operator-observed DSD path:
 Current source implementation:
 
 - Core exposes the existing fail-closed General Order evaluator as `stnlabz.policy.evaluate`
-- compliance module 1.0.1 provides explicit evaluate-only scenarios and a mandatory control-request broker
+- compliance module 1.1.0 preserves explicit evaluate-only scenarios and adds a governance-backed control-request broker
 - GO1, GO2 and GO3 are evaluated independently from Ollama
 - every proving response reports `execution=SUPPRESSED`
 - `DENY` and `ESCALATE` cannot reach the executor boundary
@@ -76,8 +76,11 @@ Current source implementation:
 - no operational restart/stop/deploy authority has been granted
 - 1.0.0 decision behavior was operator-observed through the live client
 - 1.0.1 broker enforcement was operator-observed through the live client
-- formal acceptance of 1.0.1 has not been separately recorded
-- further compliance development is paused for the night by operator direction
+- 1.1.0 removes caller-supplied compliance flags from the real control service
+- 1.1.0 resolves governing facts from a root-owned installed governance record
+- missing mission/policy/instruction/authority facts become `CORE.UNKNOWN` and escalate
+- the live proving record grants no operational permission
+- 1.1.0 build/runtime/operator testing remains pending
 
 This is the proving stage before Rictus receives operational control capability.
 
@@ -188,10 +191,14 @@ Operator-observed Compliance 1.0.1 behavior:
 
 No operational executor was enabled.
 
-The next unresolved design stage is to replace manually supplied proving flags
-with authoritative runtime sources for mission state, active policies,
-directives/instructions, and delegated authority. This stage is not authorized
-for implementation by the roadmap and is currently paused by operator direction.
+The current implementation stage is Compliance 1.1.0. The synthetic
+`/compliance` command still accepts proving flags, but the real `/control`
+path does not. It resolves mission, policy/directive, instruction, and authority
+facts from the installed governance record and escalates unknown state.
+
+This is still a proving source, not Mission Control integration. The installed
+record currently grants no operational control permission, and the executor
+remains suppressed.
 
 ## Deferred / not currently selected
 
