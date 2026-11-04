@@ -15,7 +15,7 @@
 #define COMPLIANCE_VERSION_MAJOR 1U
 #define COMPLIANCE_VERSION_MINOR 1U
 /* [AI:GPT-6 | 2026-11-04 05:40:31 UTC] */
-#define COMPLIANCE_VERSION_PATCH 2U
+#define COMPLIANCE_VERSION_PATCH 3U
 /* [End AI:GPT-6] */
 
 static const stnlabz_module_host_t *owner;
@@ -334,6 +334,72 @@ static stnlabz_module_result_t control_controller(
         ? STNLABZ_MODULE_OK : STNLABZ_MODULE_ERR_INVALID_STATE;
 }
 
+/* [AI:GPT-6 | 2026-11-04 06:00:00 UTC] */
+static int policy_evidence_command_registered;
+
+static stnlabz_module_result_t policy_evidence_controller(
+    const stnlabz_module_command_t *command,
+    stnlabz_module_command_reply_fn reply,
+    void *reply_context,
+    void *handler_context)
+{
+    rictus_policy_evidence_request_t request;
+    rictus_policy_evidence_response_t response;
+    char operation[128], target[64], output[512];
+    size_t used = 0U;
+    int written;
+    stnlabz_module_result_t result;
+
+    (void)handler_context;
+    if (!command || !reply || !owner || !owner->invoke_service ||
+        !memchr(command->arguments, 0, sizeof command->arguments))
+        return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
+
+    if (!rictus_control_parse(command->arguments,
+            operation, sizeof operation, target, sizeof target)) {
+        return reply(reply_context,
+            "Usage: /policy-evidence <operation> <target> ; evidence only, no policy decision.")
+            ? STNLABZ_MODULE_OK : STNLABZ_MODULE_ERR_INVALID_STATE;
+    }
+
+    memset(&request, 0, sizeof request);
+    memset(&response, 0, sizeof response);
+    if (snprintf(request.operation, sizeof request.operation, "%s", operation) >=
+            (int)sizeof request.operation ||
+        snprintf(request.target, sizeof request.target, "%s", target) >=
+            (int)sizeof request.target)
+        return STNLABZ_MODULE_ERR_INVALID_STATE;
+
+    result = owner->invoke_service(RICTUS_POLICY_EVIDENCE_SERVICE,
+        &request, sizeof request, &response, sizeof response, &used);
+    if (result != STNLABZ_MODULE_OK) return result;
+    if (used != sizeof response ||
+        !memchr(response.operation_document, 0, sizeof response.operation_document) ||
+        !memchr(response.target_document, 0, sizeof response.target_document) ||
+        !memchr(response.operation_sha256, 0, sizeof response.operation_sha256) ||
+        !memchr(response.target_sha256, 0, sizeof response.target_sha256))
+        return STNLABZ_MODULE_ERR_INVALID_STATE;
+
+    if (!response.index_available)
+        return reply(reply_context,
+            "Policy evidence: index=UNAVAILABLE decision=NOT_EVALUATED execution=SUPPRESSED")
+            ? STNLABZ_MODULE_OK : STNLABZ_MODULE_ERR_INVALID_STATE;
+
+    written = snprintf(output, sizeof output,
+        "Policy evidence: operation=%s target=%s index=AVAILABLE matches=%u/%u "
+        "op_source=%s:%u target_source=%s:%u decision=NOT_EVALUATED execution=SUPPRESSED",
+        operation, target, response.operation_matches, response.target_matches,
+        response.operation_document[0] ? response.operation_document : "NONE",
+        response.operation_line,
+        response.target_document[0] ? response.target_document : "NONE",
+        response.target_line);
+    if (written < 0 || (size_t)written >= sizeof output)
+        return STNLABZ_MODULE_ERR_INVALID_STATE;
+    return reply(reply_context, output)
+        ? STNLABZ_MODULE_OK : STNLABZ_MODULE_ERR_INVALID_STATE;
+}
+/* [End AI:GPT-6] */
+
 static stnlabz_module_result_t compliance_qualify(
     stnlabz_module_qualification_result_t *qualification)
 {
@@ -410,11 +476,22 @@ static stnlabz_module_result_t compliance_start(const stnlabz_module_host_t *hos
         goto fail;
     control_command_registered = 1;
 
+    /* [AI:GPT-6 | 2026-11-04 06:00:00 UTC] */
+    if (!host->register_command("policy-evidence", policy_evidence_controller, NULL))
+        goto fail;
+    policy_evidence_command_registered = 1;
+    /* [End AI:GPT-6] */
+
     fprintf(stderr,
         "[COMPLIANCE] governance-backed control broker active; executor suppressed\n");
     return STNLABZ_MODULE_OK;
 
 fail:
+    /* [AI:GPT-6 | 2026-11-04 06:00:00 UTC] */
+    if (policy_evidence_command_registered)
+        (void)host->unregister_command("policy-evidence", NULL);
+    policy_evidence_command_registered = 0;
+    /* [End AI:GPT-6] */
     /* [AI:GPT-6 | 2026-11-04 05:40:31 UTC] */
     if (evidence_service_registered)
         (void)host->unregister_service(RICTUS_POLICY_EVIDENCE_SERVICE, NULL);
@@ -435,6 +512,12 @@ fail:
 
 static stnlabz_module_result_t compliance_stop(void)
 {
+    /* [AI:GPT-6 | 2026-11-04 06:00:00 UTC] */
+    if (policy_evidence_command_registered && owner &&
+        !owner->unregister_command("policy-evidence", NULL))
+        return STNLABZ_MODULE_ERR_STOP_FAILED;
+    policy_evidence_command_registered = 0;
+    /* [End AI:GPT-6] */
     /* [AI:GPT-6 | 2026-11-04 05:40:31 UTC] */
     if (evidence_service_registered && owner &&
         !owner->unregister_service(RICTUS_POLICY_EVIDENCE_SERVICE, NULL))
