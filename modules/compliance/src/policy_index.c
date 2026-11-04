@@ -92,6 +92,16 @@ int rictus_policy_index_scan(const char *path, const char *operation,
         *tab3++ = 0;
         sha = tab2;
         text = tab3;
+        /* [AI:GPT-6 | 2026-11-04 06:05:00 UTC] */
+        if (token_match(text, operation) && token_match(text, target)) {
+            ++response.same_line_matches;
+            if (!response.same_line_document[0]) {
+                memcpy(response.same_line_document, buffer, strlen(buffer) + 1U);
+                response.same_line_line = line_no;
+                memcpy(response.same_line_sha256, sha, 65U);
+            }
+        }
+        /* [End AI:GPT-6] */
         if (token_match(text, operation)) {
             ++response.operation_matches;
             if (!response.operation_document[0]) {
