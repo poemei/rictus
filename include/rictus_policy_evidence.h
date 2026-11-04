@@ -20,6 +20,12 @@ typedef struct {
     char target_document[64];
     char target_sha256[65];
     unsigned target_line;
+    /* [AI:GPT-6 | 2026-11-04 06:05:00 UTC] */
+    unsigned same_line_matches;
+    char same_line_document[64];
+    char same_line_sha256[65];
+    unsigned same_line_line;
+    /* [End AI:GPT-6] */
 } rictus_policy_evidence_response_t;
 /* [End AI:GPT-6] */
 
