@@ -1,13 +1,19 @@
 #include <stdio.h>
-#include "web_protocol.h"
+#include "stnlabz_abi/module.h"
 
 int main(void)
 {
-    unsigned int executed = 0U, passed = 0U;
-    int negative_executed = 0, negative_passed = 0;
-    int ok = rictus_web_run_selftests(&executed, &passed,
-                                     &negative_executed, &negative_passed);
-    printf("web protocol: %u/%u passed, negative=%d/%d\n",
-           passed, executed, negative_passed, negative_executed);
-    return ok ? 0 : 1;
+    stnlabz_module_qualification_result_t result = {0};
+    const stnlabz_module_descriptor_t *module = stnlabz_module_get_descriptor();
+    stnlabz_module_result_t status;
+    if (!module || !module->qualify) return 1;
+    status = module->qualify(&result);
+    printf("Rictus Web: %u/%u passed, negative=%d/%d\n",
+           result.tests_passed, result.tests_executed,
+           result.negative_test_passed, result.negative_test_executed);
+    return status == STNLABZ_MODULE_OK &&
+           result.tests_executed >= STNLABZ_MODULE_MIN_TESTS &&
+           result.tests_failed == 0U &&
+           result.negative_test_executed && result.negative_test_passed
+           ? 0 : 1;
 }
