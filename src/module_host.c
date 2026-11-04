@@ -193,9 +193,13 @@ static stnlabz_module_result_t policy_evaluate_service(
         !memchr(in->module_id, 0, sizeof in->module_id) ||
         !memchr(in->escalation_target, 0, sizeof in->escalation_target) ||
         !memchr(in->verification_source, 0, sizeof in->verification_source) ||
+        (in->mission_known != 0 && in->mission_known != 1) ||
         (in->within_mission != 0 && in->within_mission != 1) ||
+        (in->policy_known != 0 && in->policy_known != 1) ||
         (in->complies_with_policy != 0 && in->complies_with_policy != 1) ||
+        (in->instruction_known != 0 && in->instruction_known != 1) ||
         (in->instruction_authorized != 0 && in->instruction_authorized != 1) ||
+        (in->authority_known != 0 && in->authority_known != 1) ||
         (in->authority_granted != 0 && in->authority_granted != 1) ||
         (in->context_verified != 0 && in->context_verified != 1))
         return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
@@ -208,9 +212,13 @@ static stnlabz_module_result_t policy_evaluate_service(
     policy_request.escalation_target = in->escalation_target[0] ?
         in->escalation_target : NULL;
     policy_request.verification_source = in->verification_source;
+    policy_request.mission_known = in->mission_known;
     policy_request.within_mission = in->within_mission;
+    policy_request.policy_known = in->policy_known;
     policy_request.complies_with_policy = in->complies_with_policy;
+    policy_request.instruction_known = in->instruction_known;
     policy_request.instruction_authorized = in->instruction_authorized;
+    policy_request.authority_known = in->authority_known;
     policy_request.authority_granted = in->authority_granted;
     policy_request.context_verified = in->context_verified;
 
