@@ -1,0 +1,53 @@
+#define _POSIX_C_SOURCE 200809L
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include "policy_index_internal.h"
+
+/* [AI:GPT-6 | 2026-11-04 05:40:58 UTC] */
+static int test_read_only_index(void)
+{
+    char path[] = "/tmp/rictus-policy-evidence-XXXXXX";
+    int fd = mkstemp(path);
+    FILE *stream;
+    rictus_policy_evidence_response_t result;
+    int ok = 0;
+    if (fd < 0) return 0;
+    stream = fdopen(fd, "w");
+    if (!stream) { close(fd); unlink(path); return 0; }
+    if (fputs("20260729.0\t12\tDigital documentation does not restart systems.\n"
+              "20260805.0\t7\tDigit may require an authorized restart.\n",
+              stream) < 0 || fclose(stream) != 0) {
+        unlink(path);
+        return 0;
+    }
+    if (rictus_policy_index_scan(path, "restart", "digit", &result) &&
+        result.index_available == 1 &&
+        result.operation_matches == 2 &&
+        result.target_matches == 1 &&
+        !strcmp(result.target_document, "20260805.0") &&
+        result.target_line == 7U) ok = 1;
+    unlink(path);
+    return ok;
+}
+
+static int test_absent_index(void)
+{
+    rictus_policy_evidence_response_t result;
+    return rictus_policy_index_scan("/tmp/rictus-policy-index-not-installed-xyz",
+            "restart", "digit", &result) &&
+        !result.index_available && !result.operation_matches &&
+        !result.target_matches;
+}
+
+int main(void)
+{
+    int passed = 0;
+    passed += test_read_only_index();
+    passed += test_absent_index();
+    printf("Policy evidence qualification executed=2 passed=%d\n", passed);
+    return passed == 2 ? 0 : 1;
+}
+/* [End AI:GPT-6] */
