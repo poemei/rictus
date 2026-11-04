@@ -1,116 +1,159 @@
-# Rictus Compliance Proving Gate — 1.0.1
+# Rictus Compliance Proving Gate — 1.1.0
 
-This module demonstrates Rictus compliance with the three organization-wide
-STN-LABZ General Orders before Rictus is granted operational control capability.
+This module proves that Rictus control decisions remain subordinate to the
+organization-wide STN-LABZ General Orders before operational control capability
+is granted.
 
 It does **not** execute operational actions.
 
-Version 1.0.1 adds a mandatory control-request broker. A proposed control action cannot reach the executor boundary unless Core first returns `ALLOW` from the General Order evaluator. The executor itself remains deliberately suppressed in this proving stage.
-
-The module registers the explicit command:
-
-`/compliance`
-
-and submits an evaluate-only scenario to the Core-owned
-`stnlabz.policy.evaluate` service. Core applies the existing fail-closed
-General Order evaluator and records the policy decision in the normal Core log.
-
-## General Orders evaluated
+## General Orders
 
 1. Remain at your assigned mission.
 2. Follow established policies and authorized instructions.
-3. Report anything outside of your authority to the appropriate people levels above you.
+3. Report anything outside of your authority to the appropriate next level of authority.
 
-## Syntax
+## Two deliberately separate paths
+
+### Synthetic proving harness
+
+The command:
+
+`/compliance`
+
+remains an explicit test harness. It accepts operator-supplied mission, policy,
+instruction and authority flags so the Core policy evaluator can be exercised
+against known scenarios.
+
+Example:
 
 ```text
-/compliance <operation> <target> mission=<yes|no> policy=<yes|no> instruction=<yes|no> authority=<yes|no> [escalate=<target>]
+/compliance restart digit mission=yes policy=no instruction=yes authority=yes escalate=STN6
 ```
 
-Examples:
+This command is **not** an operational control request.
 
-```text
-/compliance restart digit mission=yes policy=yes instruction=yes authority=yes
-/compliance restart digit mission=yes policy=no instruction=yes authority=yes
-/compliance restart digit mission=yes policy=yes instruction=yes authority=no escalate=STN6
-/compliance restart digit mission=no policy=yes instruction=yes authority=yes escalate=STN6
-```
+### Governance-backed control broker
 
-Every response includes:
+The command:
 
-`execution=SUPPRESSED`
+`/control <operation> <target>`
 
-An `ALLOW` result therefore proves only that the supplied scenario satisfied
-the current General Order evaluator. It does not authorize or perform a restart,
-stop, deployment, module change, or any other operational action.
-
-This proving interface deliberately separates:
-
-- identity of the requesting operator
-- mission compliance
-- policy compliance
-- instruction authorization
-- delegated authority
-- escalation
-
-from execution.
-
-## Build and test
-
-```sh
-make -C modules/compliance clean all test
-sudo make -C modules/compliance install
-```
-
-Core must also be rebuilt and installed because
-`stnlabz.policy.evaluate` is a Core-owned service boundary.
-
-Source implementation is not operator acceptance. Runtime behavior must be
-tested through the operator-selected client.
-
-
-## Mandatory control broker
-
-The module also registers:
-
-`/control`
-
-and the service:
+uses:
 
 `rictus.control.request`
 
-The control path is:
+and callers can no longer supply mission, policy, instruction or authority
+booleans.
+
+The broker resolves governing facts from the installed read-only record:
+
+`/opt/rictus/modules/compliance/governance.conf`
+
+then invokes the Core-owned:
+
+`stnlabz.policy.evaluate`
+
+Control path:
 
 ```text
-proposed action
+/control <operation> <target>
     -> rictus.control.request
+    -> governance.conf
+    -> mission / policy+directive / instruction / authority facts
     -> stnlabz.policy.evaluate
-    -> DENY / ESCALATE: executor BLOCKED
-    -> ALLOW: executor REACHED
+    -> ALLOW / DENY / ESCALATE
+    -> executor boundary
     -> execution SUPPRESSED
 ```
 
-The proving executor performs no restart, stop, deployment, mutation, message,
-or other external side effect. Its only purpose is to prove whether the
-General Order gate physically prevents non-ALLOW decisions from reaching the
-execution boundary.
+The current executor remains a no-op proving stub.
 
-Examples:
+## Unknown state
+
+Compliance 1.1.0 explicitly distinguishes whether each governing fact is known.
+
+The response reports:
+
+`known=<mission>/<policy>/<instruction>/<authority>`
+
+For example:
+
+`known=0/0/0/0`
+
+means none of the required facts were established.
+
+Core treats incomplete governing state as:
 
 ```text
-/control restart digit mission=yes policy=yes instruction=yes authority=yes
-/control restart digit mission=no policy=yes instruction=yes authority=yes
-/control restart digit mission=yes policy=no instruction=yes authority=yes escalate=STN6
-/control restart digit mission=yes policy=yes instruction=yes authority=no escalate=STN6
+decision=ESCALATE
+policy=CORE.UNKNOWN
+reason=governing_state_unknown
 ```
 
-Expected executor disposition:
+Unknown state never implies permission.
 
-- `ALLOW` -> `executor=REACHED execution=SUPPRESSED`
-- `DENY` -> `executor=BLOCKED execution=SUPPRESSED`
-- `ESCALATE` -> `executor=BLOCKED execution=SUPPRESSED`
+## Governance record format
 
-The flags in this proving interface are controlled scenario inputs. They do not
-constitute production authentication, policy discovery, directive discovery, or
-delegated-authority verification. Those inputs will require authoritative
-sources before operational status.
+The installed record is root-owned and line-oriented:
+
+```text
+escalation|<next-level>
+mission|<operation>|<target>|allow
+mission|<operation>|<target>|deny
+policy|<operation>|<target>|allow
+policy|<operation>|<target>|deny
+directive|<operation>|<target>|allow
+directive|<operation>|<target>|deny
+instruction|<actor>|<operation>|<target>|allow
+instruction|<actor>|<operation>|<target>|deny
+authority|rictus|<operation>|<target>|allow
+authority|rictus|<operation>|<target>|deny
+```
+
+Rules are exact-match and duplicate matching facts are rejected.
+
+Policy compliance is known-allow only when both the applicable policy and
+directive state are known-allow. A known-deny from either source establishes a
+known policy denial. Missing information remains unknown.
+
+## Current live proving record
+
+The repository record currently defines only:
+
+```text
+escalation|STN6
+```
+
+It grants **no** restart, stop, deployment, mutation, or other operational
+permission.
+
+Therefore, after 1.1.0 is built and installed, a request such as:
+
+```text
+/control restart digit
+```
+
+is expected to resolve required governing facts as unknown and escalate while
+keeping the executor blocked and execution suppressed.
+
+Synthetic ALLOW records exist only inside module self-tests. They are not
+installed as operational authority.
+
+## Build and install
+
+Because 1.1.0 extends the Core policy request contract to represent known versus
+unknown governing facts, rebuild Core and the Compliance module:
+
+```sh
+make clean
+make
+make -C modules/compliance clean all test
+
+sudo make install
+sudo make -C modules/compliance install
+```
+
+The Compliance installer uses the actual Rictus ownership model: `root:root`.
+
+Source implementation, compilation, qualification, activation, and live
+operator acceptance remain separate evidence gates.
