@@ -34,7 +34,15 @@ static int test_read_only_index(void)
         !strcmp(result.target_document, "20260805.0.R1") &&
         !strcmp(result.target_sha256,
             "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb") &&
-        result.target_line == 7U) ok = 1;
+        result.target_line == 7U &&
+        /* [AI:GPT-6 | 2026-11-04 06:05:00 UTC] */
+        result.same_line_matches == 1U &&
+        !strcmp(result.same_line_document, "20260805.0.R1") &&
+        result.same_line_line == 7U &&
+        !strcmp(result.same_line_sha256,
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+        /* [End AI:GPT-6] */
+        ) ok = 1;
     unlink(path);
     return ok;
 }
@@ -45,7 +53,7 @@ static int test_absent_index(void)
     return rictus_policy_index_scan("/tmp/rictus-policy-index-not-installed-xyz",
             "restart", "digit", &result) &&
         !result.index_available && !result.operation_matches &&
-        !result.target_matches;
+        !result.target_matches && !result.same_line_matches;
 }
 
 int main(void)
