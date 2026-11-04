@@ -15,7 +15,7 @@
 #define COMPLIANCE_VERSION_MAJOR 1U
 #define COMPLIANCE_VERSION_MINOR 1U
 /* [AI:GPT-6 | 2026-11-04 05:40:31 UTC] */
-#define COMPLIANCE_VERSION_PATCH 3U
+#define COMPLIANCE_VERSION_PATCH 4U
 /* [End AI:GPT-6] */
 
 static const stnlabz_module_host_t *owner;
@@ -377,7 +377,9 @@ static stnlabz_module_result_t policy_evidence_controller(
         !memchr(response.operation_document, 0, sizeof response.operation_document) ||
         !memchr(response.target_document, 0, sizeof response.target_document) ||
         !memchr(response.operation_sha256, 0, sizeof response.operation_sha256) ||
-        !memchr(response.target_sha256, 0, sizeof response.target_sha256))
+        !memchr(response.target_sha256, 0, sizeof response.target_sha256) ||
+        !memchr(response.same_line_document, 0, sizeof response.same_line_document) ||
+        !memchr(response.same_line_sha256, 0, sizeof response.same_line_sha256))
         return STNLABZ_MODULE_ERR_INVALID_STATE;
 
     if (!response.index_available)
@@ -387,12 +389,16 @@ static stnlabz_module_result_t policy_evidence_controller(
 
     written = snprintf(output, sizeof output,
         "Policy evidence: operation=%s target=%s index=AVAILABLE matches=%u/%u "
-        "op_source=%s:%u target_source=%s:%u decision=NOT_EVALUATED execution=SUPPRESSED",
+        "op_source=%s:%u target_source=%s:%u same_line=%u joint_source=%s:%u "
+        "decision=NOT_EVALUATED execution=SUPPRESSED",
         operation, target, response.operation_matches, response.target_matches,
         response.operation_document[0] ? response.operation_document : "NONE",
         response.operation_line,
         response.target_document[0] ? response.target_document : "NONE",
-        response.target_line);
+        response.target_line,
+        response.same_line_matches,
+        response.same_line_document[0] ? response.same_line_document : "NONE",
+        response.same_line_line);
     if (written < 0 || (size_t)written >= sizeof output)
         return STNLABZ_MODULE_ERR_INVALID_STATE;
     return reply(reply_context, output)
