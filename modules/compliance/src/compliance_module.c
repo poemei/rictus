@@ -8,15 +8,21 @@
 #include "rictus_identity.h"
 #include "compliance_internal.h"
 #include "governance_internal.h"
+/* [AI:GPT-6 | 2026-11-04 05:40:31 UTC] */
+#include "policy_index_internal.h"
+/* [End AI:GPT-6] */
 
 #define COMPLIANCE_VERSION_MAJOR 1U
 #define COMPLIANCE_VERSION_MINOR 1U
-#define COMPLIANCE_VERSION_PATCH 1U
+#define COMPLIANCE_VERSION_PATCH 2U
 
 static const stnlabz_module_host_t *owner;
 static int command_registered;
 static int control_command_registered;
 static int control_service_registered;
+/* [AI:GPT-6 | 2026-11-04 05:40:31 UTC] */
+static int evidence_service_registered;
+/* [End AI:GPT-6] */
 
 static const char *decision_name(int decision)
 {
@@ -145,6 +151,29 @@ static stnlabz_module_result_t control_request_service(
     if (response_used) *response_used = sizeof *out;
     return STNLABZ_MODULE_OK;
 }
+
+/* [AI:GPT-6 | 2026-11-04 05:40:31 UTC] */
+static stnlabz_module_result_t policy_evidence_service(
+    const void *request, size_t request_size,
+    void *response, size_t response_size, size_t *response_used,
+    void *handler_context)
+{
+    const rictus_policy_evidence_request_t *in = request;
+    rictus_policy_evidence_response_t *out = response;
+    (void)handler_context;
+    if (response_used) *response_used = 0U;
+    if (!in || request_size != sizeof *in || !out || response_size < sizeof *out ||
+        !memchr(in->operation, 0, sizeof in->operation) ||
+        !memchr(in->target, 0, sizeof in->target) ||
+        !in->operation[0] || !in->target[0])
+        return STNLABZ_MODULE_ERR_INVALID_ARGUMENT;
+    if (!rictus_policy_index_scan(RICTUS_POLICY_EVIDENCE_PATH,
+        in->operation, in->target, out))
+        return STNLABZ_MODULE_ERR_INVALID_STATE;
+    if (response_used) *response_used = sizeof *out;
+    return STNLABZ_MODULE_OK;
+}
+/* [End AI:GPT-6] */
 
 static stnlabz_module_result_t compliance_controller(
     const stnlabz_module_command_t *command,
@@ -346,6 +375,13 @@ static stnlabz_module_result_t compliance_start(const stnlabz_module_host_t *hos
         goto fail;
     control_service_registered = 1;
 
+    /* [AI:GPT-6 | 2026-11-04 05:40:31 UTC] */
+    if (!host->register_service(RICTUS_POLICY_EVIDENCE_SERVICE,
+        policy_evidence_service, NULL))
+        goto fail;
+    evidence_service_registered = 1;
+    /* [End AI:GPT-6] */
+
     if (!host->register_command("compliance", compliance_controller, NULL))
         goto fail;
     command_registered = 1;
@@ -359,6 +395,11 @@ static stnlabz_module_result_t compliance_start(const stnlabz_module_host_t *hos
     return STNLABZ_MODULE_OK;
 
 fail:
+    /* [AI:GPT-6 | 2026-11-04 05:40:31 UTC] */
+    if (evidence_service_registered)
+        (void)host->unregister_service(RICTUS_POLICY_EVIDENCE_SERVICE, NULL);
+    evidence_service_registered = 0;
+    /* [End AI:GPT-6] */
     if (control_command_registered)
         (void)host->unregister_command("control", NULL);
     control_command_registered = 0;
@@ -374,6 +415,12 @@ fail:
 
 static stnlabz_module_result_t compliance_stop(void)
 {
+    /* [AI:GPT-6 | 2026-11-04 05:40:31 UTC] */
+    if (evidence_service_registered && owner &&
+        !owner->unregister_service(RICTUS_POLICY_EVIDENCE_SERVICE, NULL))
+        return STNLABZ_MODULE_ERR_STOP_FAILED;
+    evidence_service_registered = 0;
+    /* [End AI:GPT-6] */
     if (control_command_registered && owner &&
         !owner->unregister_command("control", NULL))
         return STNLABZ_MODULE_ERR_STOP_FAILED;
