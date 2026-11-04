@@ -282,6 +282,7 @@ static stnlabz_module_result_t control_controller(
     if (used != sizeof response ||
         !memchr(response.policy_id, 0, sizeof response.policy_id) ||
         !memchr(response.reason, 0, sizeof response.reason) ||
+        response.assigned_mission_verified != 1 ||
         response.execution_suppressed != 1)
         return STNLABZ_MODULE_ERR_INVALID_STATE;
 
