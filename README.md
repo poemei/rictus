@@ -42,10 +42,12 @@ Compliance 1.0.1 has been operator-observed through the live Rictus client:
 The current executor is deliberately inert. Rictus has not been granted restart,
 stop, deployment, mutation, or other new operational control capability.
 
-Compliance 1.1.0 is the active source stage. The real `/control` path no longer
-accepts caller-supplied compliance booleans and resolves governing facts from
-the `rictus:rictus`-owned installed governance record. Missing facts remain UNKNOWN and
-escalate; no operational executor is enabled.
+Compliance 1.1.1 is the active source stage. The real `/control` path no longer
+accepts caller-supplied compliance booleans. It verifies Rictus's assigned mission
+through the authoritative Identity service, then resolves operation-specific
+governing facts from the `rictus:rictus`-owned governance record. Mission record
+verification does not imply that an operation is within mission. Missing facts
+remain UNKNOWN and escalate; no operational executor is enabled.
 
 
 ## Core DSD diagnostics
