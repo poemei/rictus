@@ -44,7 +44,7 @@ stop, deployment, mutation, or other new operational control capability.
 
 Compliance 1.1.0 is the active source stage. The real `/control` path no longer
 accepts caller-supplied compliance booleans and resolves governing facts from
-the root-owned installed governance record. Missing facts remain UNKNOWN and
+the `rictus:rictus`-owned installed governance record. Missing facts remain UNKNOWN and
 escalate; no operational executor is enabled.
 
 
