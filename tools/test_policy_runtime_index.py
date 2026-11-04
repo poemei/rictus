@@ -31,6 +31,32 @@ class PolicyRuntimeIndexTests(unittest.TestCase):
         self.assertEqual(export_index(catalog).splitlines()[0].split("\t")[-1],
                          "Digit control")
 
+    # [AI:GPT-6 | 2026-11-04 05:50:38 UTC]
+    def test_filename_root_fallback_for_missing_declared_root(self):
+        catalog = {"documents": [{
+            "file": "20261016.0_AI_MODULE_CREATION.txt",
+            "root_document_id": "",
+            "revision_id": "",
+            "sha256_file_bytes": "a" * 64,
+            "text": "Module Creation Policy.\n",
+            "issues": ["invalid_or_missing_root_id"],
+        }]}
+        rows = export_index(catalog).splitlines()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].split("\t")[:3],
+                         ["20261016.0", "1", "a" * 64])
+        self.assertEqual(catalog["documents"][0]["root_document_id"], "")
+        self.assertEqual(catalog["documents"][0]["issues"],
+                         ["invalid_or_missing_root_id"])
+
+    def test_fallback_requires_identifiable_filename(self):
+        with self.assertRaises(ValueError):
+            export_index({"documents": [{
+                "file": "unknown.txt", "root_document_id": "",
+                "sha256_file_bytes": "a" * 64, "text": "text",
+            }]})
+    # [End AI:GPT-6]
+
     def test_missing_full_text_and_identity_are_rejected(self):
         with self.assertRaises(ValueError):
             export_index({"documents": [{"root_document_id": "20260729.0"}]})
