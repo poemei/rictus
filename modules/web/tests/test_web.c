@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include "stnlabz_abi/module.h"
 
+/* Module entrypoint is exported by web_module.c, not declared by the ABI header. */
+extern const stnlabz_module_descriptor_t *stnlabz_module_get_descriptor(void);
+
 int main(void)
 {
     stnlabz_module_qualification_result_t result = {0};
