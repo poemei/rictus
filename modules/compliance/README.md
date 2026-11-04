@@ -1,4 +1,4 @@
-# Rictus Compliance Proving Gate — 1.1.1
+# Rictus Compliance Proving Gate — 1.1.2
 
 This module proves that Rictus control decisions remain subordinate to the
 organization-wide STN-LABZ General Orders before operational control capability
@@ -156,3 +156,51 @@ The Compliance installer uses the actual Rictus ownership model: `rictus:rictus`
 
 Source implementation, compilation, qualification, activation, and live
 operator acceptance remain separate evidence gates.
+
+<!-- [AI:GPT-6 | 2026-11-04 05:45:24 UTC] -->
+## Policy corpus evidence service — 1.1.2
+
+Compliance additionally registers the internal read-only service
+`rictus.policy.evidence`. It accepts an operation and target and searches
+an installed, local policy evidence index at:
+
+`/opt/rictus/modules/compliance/policy_index.tsv`
+
+The response reports whether the index is present, separate whole-term match
+counts for operation and target, and the first matching source's declared
+document/revision identity, line number, and source SHA-256. It does **not**
+establish whether two terms occur in the same document, choose an authoritative
+revision, infer policy applicability, or approve an action.
+
+Generate the index *locally* from the full policy catalog:
+
+```sh
+python3 tools/policy_inventory.py STN_POLICIES_TXT.zip --include-text > policy_catalog.json
+python3 tools/policy_runtime_index.py policy_catalog.json > policy_index.tsv
+```
+
+The controlled policy corpus and generated index are not committed to the Rictus
+source repository. Installation of `policy_index.tsv` is a separate operator
+action. The standard module `make install` deliberately does not install it.
+
+If the index is absent, the service explicitly reports
+`index_available=0`; it does not report a misleading zero-match result as
+proof that no applicable policies exist. A malformed or unreadable index
+produces a service failure.
+
+The existing `/control` broker still obtains governing facts from
+`governance.conf` and applies the existing Core evaluator. No policy match is
+converted into a governing fact, no external controller can use this service to
+grant permission, and execution remains `SUPPRESSED`.
+
+For source qualification:
+
+```sh
+make -C modules/compliance clean all test
+python3 -m unittest discover -s tools -p 'test_policy*.py' -v
+```
+
+This stage establishes internal runtime access to source-linked evidence. The
+service is not exposed as a new IRC command and does not yet provide an
+end-to-end operator client query.
+<!-- [End AI:GPT-6] -->
