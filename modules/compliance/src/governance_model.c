@@ -111,14 +111,16 @@ static int split_fields(char *line, char **fields, size_t maximum, size_t *count
         char *separator;
         fields[used++] = cursor;
         separator = strchr(cursor, '|');
-        if (!separator) break;
+        if (!separator) {
+            *count = used;
+            return 1;
+        }
+        if (used == maximum) return 0;
         *separator = '\0';
         cursor = separator + 1;
     }
 
-    if (strchr(cursor, '|')) return 0;
-    *count = used;
-    return 1;
+    return 0;
 }
 
 static int set_fact(int *known, int *value, int next)
