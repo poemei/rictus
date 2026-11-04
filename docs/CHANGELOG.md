@@ -456,3 +456,83 @@ The prior `root:root` assumption was incorrect for this installation target.
 
 No compliance decision logic, Core policy semantics, ABI behavior, or executor
 behavior changed in this correction.
+
+
+### Compliance 1.1.0 — operator acceptance and continuation
+
+**Operator-observed and accepted; continuation authorized**
+
+The operator exercised the governance-backed control path through the live
+Rictus client.
+
+Observed:
+
+`/control restart digit`
+
+returned:
+
+`ESCALATE / CORE.UNKNOWN / governing_state_unknown`
+
+with:
+
+`known=0/0/0/0 executor=BLOCKED execution=SUPPRESSED`
+
+The operator also exercised the former caller-controlled flag form. The live
+controller rejected:
+
+`/control restart digit mission=yes policy=yes instruction=yes authority=yes`
+
+and returned the 1.1.0 two-argument usage form.
+
+This demonstrated that the real control path no longer accepts caller-supplied
+mission, policy, instruction, or authority state.
+
+The operator then directed development to continue.
+
+### Compliance 1.1.1 — authoritative assigned-mission verification
+
+**Implemented; build/runtime/operator acceptance pending**
+
+Compliance now invokes the existing authoritative:
+
+`rictus.identity.answer`
+
+service with the bounded `mission` query before evaluating a real control
+request.
+
+A valid non-empty Identity mission response establishes only that Rictus's
+assigned mission record is available and verified from the existing Identity
+source.
+
+It does **not** establish that a requested operation is within that mission.
+
+The control response therefore reports the two facts separately:
+
+`assigned_mission=VERIFIED`
+
+and:
+
+`known=<mission-scope>/<policy>/<instruction>/<authority>`
+
+With the current proving governance record, `/control restart digit` is expected
+to report:
+
+`assigned_mission=VERIFIED known=0/0/0/0`
+
+and continue to:
+
+`ESCALATE / CORE.UNKNOWN`
+
+with the executor blocked and execution suppressed.
+
+If the Identity mission service is unavailable, malformed, or returns an empty
+mission response, the control request fails closed before policy evaluation.
+
+No mission-scope permission was inferred from the natural-language mission
+statement. No policy, directive, instruction, or delegated-authority permission
+was added. No operational executor was enabled.
+
+Compliance module version advanced from 1.1.0 to **1.1.1**.
+
+Core policy semantics, shared ABI 1.5, DSD, IRC, Ollama, and Identity source
+behavior were not modified by this step.
