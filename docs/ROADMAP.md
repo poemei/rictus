@@ -77,7 +77,7 @@ Current source implementation:
 - 1.0.0 decision behavior was operator-observed through the live client
 - 1.0.1 broker enforcement was operator-observed through the live client
 - 1.1.0 removes caller-supplied compliance flags from the real control service
-- 1.1.0 resolves governing facts from a root-owned installed governance record
+- 1.1.0 resolves governing facts from a `rictus:rictus`-owned installed governance record
 - missing mission/policy/instruction/authority facts become `CORE.UNKNOWN` and escalate
 - the live proving record grants no operational permission
 - 1.1.0 build/runtime/operator testing remains pending
